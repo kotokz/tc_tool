@@ -95,20 +95,8 @@ impl TcTool {
         paths_new.sort_by(|a, b| a.1.cmp(&b.1));
         paths_new.iter().map(|a| a.0).cloned().collect()
     }
-}
-
-impl TcLogParser for TcTool {
-    fn match_line<'a, 'b>(&'a self, line: &'b str) -> Result<Option<&'b str>, TcError> {
-        match self.pattern {
-            LogParserEnum::Pattern(ref p) => p.match_line(line),
-            LogParserEnum::Regex(ref r) => r.match_line(line),
-        }
-    }
-}
-
-impl TcProcesser for TcTool {
     /// Process files which matched the path pattern. for example: directory/file*
-    fn process_directory(&mut self, count: usize) {
+    pub fn process_directory(&mut self, count: usize) {
         let results: Vec<_> = glob(&self.path).unwrap().filter_map(|r| r.ok()).collect();
         let results = Self::sorted_path(&results);
 
@@ -130,7 +118,7 @@ impl TcProcesser for TcTool {
         }
     }
 
-    fn print_result(&self) {
+    pub fn print_result(&self) {
         // skip the first value, normally the record too old so likely to be incomplete.
         for (count, key) in self.get_result().iter().rev().enumerate() {
             match self.get_value(*key) {
@@ -140,6 +128,15 @@ impl TcProcesser for TcTool {
                 Some(val) => println!("{}-{},{},", self.name, count, val),
                 None => println!("{}-{},{}", self.name, count, "missing value"),
             };
+        }
+    }
+}
+
+impl TcLogParser for TcTool {
+    fn match_line<'a, 'b>(&'a self, line: &'b str) -> Result<Option<&'b str>, TcError> {
+        match self.pattern {
+            LogParserEnum::Pattern(ref p) => p.match_line(line),
+            LogParserEnum::Regex(ref r) => r.match_line(line),
         }
     }
 }

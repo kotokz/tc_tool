@@ -15,9 +15,7 @@ mod tcerror;
 mod tests;
 
 use std::thread;
-use tclogparser::*;
 use tradecache::*;
-use tcresult::*;
 
 fn main() {
 
@@ -29,9 +27,6 @@ fn main() {
         new_v1_publisher(),
         new_ng_trimmer(),
     ];
-
-    // let mut v: Vec<Box<TcProcesser>>= Vec::new();
-    // v.push(Box::new(new_ng_publisher()));
 
     let handlers: Vec<_> = monitors.into_iter()
                                    .map(|mut tc| {

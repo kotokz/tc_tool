@@ -65,9 +65,4 @@ pub enum LogParserEnum {
     Pattern(PatternParser),
     Regex(RegexParser),
 }
-
-pub trait TcProcesser {
-    fn process_directory(&mut self, count: usize);
-    fn print_result(&self);
-}
-                                  
+  
