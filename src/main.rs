@@ -23,11 +23,11 @@ fn main() {
 
     println!("Name, duration, lastSampleTime, Done, lastMsgTimeStamp, Efficiency(per min), Delay");
 
-    let monitors: Vec<Box<TcProcesser+Send>> = vec![
-        Box::new(new_ng_publisher()),
-        Box::new(new_ng_consumer()),
-        Box::new(new_v1_publisher()),
-        Box::new(new_ng_trimmer()),
+    let monitors: Vec<_> = vec![
+        new_ng_publisher(),
+        new_ng_consumer(),
+        new_v1_publisher(),
+        new_ng_trimmer(),
     ];
 
     // let mut v: Vec<Box<TcProcesser>>= Vec::new();

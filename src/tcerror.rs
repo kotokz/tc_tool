@@ -1,4 +1,4 @@
 pub enum TcError {
-	MisMatch,
-	Invalid,
+    MisMatch,
+    Invalid,
 }
