@@ -8,16 +8,16 @@ use tcresult::*;
 use regex::Regex;
 use tcerror::TcError;
 
-pub fn new_ng_publisher() -> TcFileProcesser {
-    TcFileProcesser {
+pub fn new_ng_publisher() -> TcTool {
+    TcTool {
         name: "NG_Publisher".to_owned(),
         path: "C:/working/projects/nimproj/logs/ng/publisher/publish.log*".to_owned(),
         pattern: LogParser::Regex(RegexParser(Some(Regex::new(r"docWriteTime=([^}]+?)}").unwrap()))),
         result: TcResultEnum::HourResult(TcHourResult::new()),
     }
 }
-pub fn new_ng_consumer() -> TcFileProcesser {
-    TcFileProcesser {
+pub fn new_ng_consumer() -> TcTool {
+    TcTool {
         name: "NG_Consumer".to_owned(),
         path: "C:/working/projects/nimproj/logs/ng/consumer/consumer.log*".to_owned(),
         // path: "E:/TradeCache/SophisConsumer-release/logs/prod/consumer.log*".to_owned(),
@@ -26,8 +26,8 @@ pub fn new_ng_consumer() -> TcFileProcesser {
     }
 }
 
-pub fn new_ng_trimmer() -> TcFileProcesser {
-    TcFileProcesser {
+pub fn new_ng_trimmer() -> TcTool {
+    TcTool {
         name: "NG_Trimmer".to_owned(),
         path: "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*".to_owned(),
         pattern: LogParser::Pattern(PatternParser("committed".to_owned())),
@@ -35,8 +35,8 @@ pub fn new_ng_trimmer() -> TcFileProcesser {
     }
 }
 
-pub fn new_v1_publisher() -> TcFileProcesser {
-    TcFileProcesser {
+pub fn new_v1_publisher() -> TcTool {
+    TcTool {
         name: "V1_Publisher".to_owned(),
         path: "C:/working/projects/nimproj/logs/v1/publisher/publish.log*".to_owned(),
         pattern: LogParser::Regex(RegexParser(Some(Regex::new(r"DocWriteTime=([^,]+?),").unwrap()))),
@@ -44,14 +44,14 @@ pub fn new_v1_publisher() -> TcFileProcesser {
     }
 }
 
-pub struct TcFileProcesser {
+pub struct TcTool {
     name: String,
     path: String,
     pattern: LogParser,
     result: TcResultEnum,
 }
 
-impl TcFileProcesser {
+impl TcTool {
     fn increase_result(&mut self, time: &str, watermark: &str) -> usize {
         match self.result {
             TcResultEnum::HourResult(ref mut h) => h.increase_count(time, watermark),
@@ -94,7 +94,7 @@ impl TcFileProcesser {
     }
 }
 
-impl TcLogParser for TcFileProcesser {
+impl TcLogParser for TcTool {
     fn match_line<'a, 'b>(&'a self, line: &'b str) -> Result<Option<&'b str>, TcError> {
         match self.pattern {
             LogParser::Pattern(ref p) => p.match_line(line),
@@ -103,7 +103,7 @@ impl TcLogParser for TcFileProcesser {
     }
 }
 
-impl TcProcesser for TcFileProcesser {
+impl TcProcesser for TcTool {
     /// Process files which matched the path pattern. for example: directory/file*
     fn process_directory(&mut self, count: usize) {
         let results: Vec<_> = glob(&self.path).unwrap().filter_map(|r| r.ok()).collect();
