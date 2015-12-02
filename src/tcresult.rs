@@ -91,9 +91,6 @@ impl HasDelay for TcStat {
     }
 }
 
-
-pub struct TcHourResult(pub BTreeMap<usize, TcStat>);
-
 pub enum TcResultEnum {
     HourResult(TcHourResult),
     BatchResult(TcHourResult),
@@ -126,6 +123,8 @@ pub trait TcResult {
             .unwrap_or(0)
     }
 }
+
+pub struct TcHourResult(pub BTreeMap<usize, TcStat>);
 
 impl TcResult for TcHourResult {
     type Result = TcStat;

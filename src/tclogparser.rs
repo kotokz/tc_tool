@@ -61,7 +61,7 @@ impl PatternParser {
     }
 }
 
-pub enum LogParser {
+pub enum LogParserEnum {
     Pattern(PatternParser),
     Regex(RegexParser),
 }
