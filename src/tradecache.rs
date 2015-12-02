@@ -84,14 +84,28 @@ impl TcTool {
     /// ...
     /// tradecache.log.10
     fn sorted_path(paths: &[PathBuf]) -> Vec<PathBuf> {
-        let mut paths_new: Vec<_> = Vec::new();
-        for name in paths {
-            let ext: usize = match name.extension() {
-                Some(ex) => ex.to_str().unwrap_or("0").parse::<usize>().unwrap_or(0),
-                None => 0,
-            };
-            paths_new.push((name, ext));
-        }
+        //let mut paths_new: Vec<_> = Vec::new();
+        // for name in paths {
+        //     let ext: usize = match name.extension() {
+        //         Some(ex) => ex.to_str().unwrap_or("0").parse::<usize>().unwrap_or(0),
+        //         None => 0,
+        //     };
+        //     paths_new.push((name, ext));
+        // }
+        let mut paths_new: Vec<_> = paths.iter()
+                                         .map(|name| {
+                                             let ext: usize = match name.extension() {
+                                                 Some(ex) => {
+                                                     ex.to_str()
+                                                       .unwrap_or("0")
+                                                       .parse::<usize>()
+                                                       .unwrap_or(0)
+                                                 }
+                                                 None => 0,
+                                             };
+                                             (name, ext)
+                                         })
+                                         .collect();
         paths_new.sort_by(|a, b| a.1.cmp(&b.1));
         paths_new.iter().map(|a| a.0).cloned().collect()
     }
