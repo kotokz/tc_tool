@@ -1,0 +1,11 @@
+[package]
+name = "tc_tool"
+version = "0.1.0"
+authors = ["kotokz <kotokz@live.com>"]
+
+[dependencies]
+glob = "*"
+lazy_static = "*"
+regex = "*"
+time = "*"
+clippy = "*"
