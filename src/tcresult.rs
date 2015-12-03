@@ -118,8 +118,8 @@ pub trait TcResult {
 
     fn trim_index(index: &str) -> usize {
         String::from_utf8(index.bytes().filter(|c| *c >= b'0' && *c <= b'9').collect::<Vec<_>>())
-            .unwrap_or("0".to_owned())
-            .parse::<usize>()
+        .ok()
+            .and_then(|m| m.parse::<usize>().ok())
             .unwrap_or(0)
     }
 }
