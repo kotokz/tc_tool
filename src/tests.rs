@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
 
-    use std::thread;
     use tclogparser::*;
     use tradecache::*;
     use tcresult::*;
@@ -98,74 +97,74 @@ mod tests {
     }
 
 
-    #[bench]
-    fn bench_tc_v1_process(b: &mut Bencher) {
-        b.iter(|| {
-            let mut publisher = new_v1_publisher();
-            publisher.process_directory(6);
-        });
-    }
+    // #[bench]
+    // fn bench_tc_v1_process(b: &mut Bencher) {
+    //     b.iter(|| {
+    //         let mut publisher = new_v1_publisher();
+    //         publisher.process_directory(6);
+    //     });
+    // }
 
-    #[bench]
-    fn bench_tc_ng_process(b: &mut Bencher) {
-        b.iter(|| {
-            let mut consumer = new_ng_consumer();
-            consumer.process_directory(6);
-        });
-    }
+    // #[bench]
+    // fn bench_tc_ng_process(b: &mut Bencher) {
+    //     b.iter(|| {
+    //         let mut consumer = new_ng_consumer();
+    //         consumer.process_directory(6);
+    //     });
+    // }
 
-    #[bench]
-    fn bench_tc_ng_trimmer(b: &mut Bencher) {
-        b.iter(|| {
-            let mut trimmer = new_ng_trimmer();
-            trimmer.process_directory(6);
-        });
-    }
+    // #[bench]
+    // fn bench_tc_ng_trimmer(b: &mut Bencher) {
+    //     b.iter(|| {
+    //         let mut trimmer = new_ng_trimmer();
+    //         trimmer.process_directory(6);
+    //     });
+    // }
 
 
-    #[bench]
-    fn bench_process_two(b: &mut Bencher) {
-        b.iter(|| {
-            let mut publisher = new_v1_publisher();
-            let mut ng_consumer = new_ng_consumer();
+    // #[bench]
+    // fn bench_process_two(b: &mut Bencher) {
+    //     b.iter(|| {
+    //         let mut publisher = new_v1_publisher();
+    //         let mut ng_consumer = new_ng_consumer();
 
-            let handle_pub = thread::spawn(move || {
-                publisher.process_directory(6);
-            });
+    //         let handle_pub = thread::spawn(move || {
+    //             publisher.process_directory(6);
+    //         });
 
-            let handle_consumer = thread::spawn(move || {
-                ng_consumer.process_directory(6);
-            });
+    //         let handle_consumer = thread::spawn(move || {
+    //             ng_consumer.process_directory(6);
+    //         });
 
-            handle_pub.join().unwrap();
-            handle_consumer.join().unwrap();
-        });
-    }
+    //         handle_pub.join().unwrap();
+    //         handle_consumer.join().unwrap();
+    //     });
+    // }
 
-    #[bench]
-    fn bench_process_three(b: &mut Bencher) {
-        b.iter(|| {
-            let mut ng_pub = new_ng_publisher();
-            let mut ng_con = new_ng_consumer();
-            let mut v1_pub = new_v1_publisher();
+    // #[bench]
+    // fn bench_process_three(b: &mut Bencher) {
+    //     b.iter(|| {
+    //         let mut ng_pub = new_ng_publisher();
+    //         let mut ng_con = new_ng_consumer();
+    //         let mut v1_pub = new_v1_publisher();
 
-            let h_pub = thread::spawn(move || {
-                ng_pub.process_directory(6);
-            });
+    //         let h_pub = thread::spawn(move || {
+    //             ng_pub.process_directory(6);
+    //         });
 
-            let h_con = thread::spawn(move || {
-                ng_con.process_directory(6);
-            });
+    //         let h_con = thread::spawn(move || {
+    //             ng_con.process_directory(6);
+    //         });
 
-            let h_v1_pub = thread::spawn(move || {
-                v1_pub.process_directory(6);
-            });
+    //         let h_v1_pub = thread::spawn(move || {
+    //             v1_pub.process_directory(6);
+    //         });
 
-            h_pub.join().unwrap();
-            h_con.join().unwrap();
-            h_v1_pub.join().unwrap();
-        });
-    }
+    //         h_pub.join().unwrap();
+    //         h_con.join().unwrap();
+    //         h_v1_pub.join().unwrap();
+    //     });
+    // }
 
     #[test]
     fn can_increase_hour_count() {

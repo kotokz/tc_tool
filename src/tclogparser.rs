@@ -47,22 +47,3 @@ impl RegexParser {
         }
     }
 }
-
-/// PatternParser using string pattern to match the line only. watermark not available for this case.
-/// Return Ok(None) for successful match.
-/// Retrun Err(TcError::MisMatch) for mismatch.
-pub struct PatternParser(pub String);
-impl PatternParser {
-    pub fn match_line<'a, 'b>(&'a self, line: &'b str) -> Result<Option<&'b str>, TcError> {
-        if line.contains(&self.0) {
-            return Ok(None);
-        }
-        Err(TcError::MisMatch)
-    }
-}
-
-pub enum LogParserEnum {
-    Pattern(PatternParser),
-    Regex(RegexParser),
-}
-  

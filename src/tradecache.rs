@@ -12,8 +12,7 @@ pub fn new_ng_publisher() -> TcTool {
     TcTool {
         name: "NG_Publisher".to_owned(),
         path: "C:/working/projects/nimproj/logs/ng/publisher/publish.log*".to_owned(),
-        pattern: LogParserEnum::Regex(RegexParser(Some(Regex::new(r"docWriteTime=([^}]+?)}")
-                                                           .unwrap()))),
+        pattern: RegexParser(Some(Regex::new(r"docWriteTime=([^}]+?)}").unwrap())),
         result: TcResultEnum::HourResult(TcHourResult::new()),
     }
 }
@@ -22,8 +21,7 @@ pub fn new_ng_consumer() -> TcTool {
         name: "NG_Consumer".to_owned(),
         path: "C:/working/projects/nimproj/logs/ng/consumer/consumer.log*".to_owned(),
         // path: "E:/TradeCache/SophisConsumer-release/logs/prod/consumer.log*".to_owned(),
-        pattern: LogParserEnum::Regex(RegexParser(Some(Regex::new(r"timestamp=(.{28})eve")
-                                                           .unwrap()))),
+        pattern: RegexParser(Some(Regex::new(r"timestamp=(.{28})eve").unwrap())),
         result: TcResultEnum::HourResult(TcHourResult::new()),
     }
 }
@@ -32,7 +30,7 @@ pub fn new_ng_trimmer() -> TcTool {
     TcTool {
         name: "NG_Trimmer".to_owned(),
         path: "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*".to_owned(),
-        pattern: LogParserEnum::Pattern(PatternParser("committed".to_owned())),
+        pattern: RegexParser(Some(Regex::new(r"committed").unwrap())),
         result: TcResultEnum::HourResult(TcHourResult::new()),
     }
 }
@@ -41,8 +39,7 @@ pub fn new_v1_publisher() -> TcTool {
     TcTool {
         name: "V1_Publisher".to_owned(),
         path: "C:/working/projects/nimproj/logs/v1/publisher/publish.log*".to_owned(),
-        pattern: LogParserEnum::Regex(RegexParser(Some(Regex::new(r"DocWriteTime=([^,]+?),")
-                                                           .unwrap()))),
+        pattern: RegexParser(Some(Regex::new(r"DocWriteTime=([^,]+?),").unwrap())),
         result: TcResultEnum::BatchResult(TcHourResult::new()),
     }
 }
@@ -50,7 +47,7 @@ pub fn new_v1_publisher() -> TcTool {
 pub struct TcTool {
     name: String,
     path: String,
-    pattern: LogParserEnum,
+    pattern: RegexParser,
     result: TcResultEnum,
 }
 
@@ -84,7 +81,7 @@ impl TcTool {
     /// ...
     /// tradecache.log.10
     fn sorted_path(paths: &[PathBuf]) -> Vec<PathBuf> {
-        //let mut paths_new: Vec<_> = Vec::new();
+        // let mut paths_new: Vec<_> = Vec::new();
         // for name in paths {
         //     let ext: usize = match name.extension() {
         //         Some(ex) => ex.to_str().unwrap_or("0").parse::<usize>().unwrap_or(0),
@@ -148,9 +145,6 @@ impl TcTool {
 
 impl TcLogParser for TcTool {
     fn match_line<'a, 'b>(&'a self, line: &'b str) -> Result<Option<&'b str>, TcError> {
-        match self.pattern {
-            LogParserEnum::Pattern(ref p) => p.match_line(line),
-            LogParserEnum::Regex(ref r) => r.match_line(line),
-        }
+        self.pattern.match_line(line)
     }
 }
