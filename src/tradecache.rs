@@ -94,8 +94,7 @@ impl TcTool {
                                              let ext: usize = match name.extension() {
                                                  Some(ex) => {
                                                      ex.to_str()
-                                                       .unwrap_or("0")
-                                                       .parse::<usize>()
+                                                       .and_then(|m| m.parse::<usize>().ok())
                                                        .unwrap_or(0)
                                                  }
                                                  None => 0,
