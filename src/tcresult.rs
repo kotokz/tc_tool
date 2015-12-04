@@ -139,7 +139,7 @@ impl TcResult for TcHourResult {
             // todo: better error handling required
             [ref hour, ref min, _] => (Self::trim_index(hour), min.parse().unwrap()),
             [ref hour, ref min] => (Self::trim_index(hour), min.parse().unwrap()),
-            _ => (0, 0),
+            _ => return self.0.len(),
         };
         {
             let mut result = self.0

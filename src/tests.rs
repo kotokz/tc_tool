@@ -6,6 +6,23 @@ mod tests {
     use tcresult::*;
     use test::Bencher;
 
+
+    fn process_line_incorrect_tester(tc: &mut TcTool) {
+        let lines: Vec<_> = vec![
+                "incorrect line",
+                "",
+                "2015-09-11 09:28:49,842 aaaaaaaaaaaaaaaaaa timestamp=aaaa",
+                "2015-09-11 09:28:49,842 aaaaaaaaaaaaaaaaaa docWriteTime=aaaa",
+                "2015-09-11 09:28:49,842 aaaaaaaaaaaaaaaaaa DocWriteTime=aaaa",
+            ];
+
+        for line in lines {
+            let (pub_time, watermark) = tc.process_line(&line);
+            assert_eq!(pub_time, None);
+            assert_eq!(watermark, None);
+        }
+    }
+
     #[bench]
     fn bench_process_line_v1_publisher(b: &mut Bencher) {
         let mut tc = new_v1_publisher();
@@ -21,13 +38,17 @@ mod tests {
                     SummitId=6996768, Counterparty=10003236, MovementStatus=VerifiedBO}, \
                     Destination name: \
                     queue://PGBLHDEIS1/GB_DEIS.GB_TRDC.GB_TRDC.TRD_SOPHML?persistence=-1";
+
         b.iter(|| {
-            let (pub_time, watermark) = match tc.process_line(&line) {
-                (Some(pub_time), Some(watermark)) => (pub_time, watermark),
-                _ => panic!("Regex failure!"),
-            };
-            assert_eq!(pub_time, "2015-11-08 09:07:54");
-            assert_eq!(watermark, "20151028 07:17:17");
+            // let (pub_time, watermark) = match tc.process_line(&line) {
+            //     (Some(pub_time), Some(watermark)) => (pub_time, watermark),
+            //     _ => panic!("Regex failure!"),
+            // };
+            let (pub_time, watermark) = tc.process_line(&line);
+            assert_eq!(pub_time, Some("2015-11-08 09:07:54"));
+            assert_eq!(watermark, Some("20151028 07:17:17"));
+
+            process_line_incorrect_tester(&mut tc);
         });
     }
 
@@ -42,12 +63,11 @@ mod tests {
                     {id=I|77787473;type=InstrumentGenericUpdate;version=45139252;timestamp=Fri \
                     Sep 11 09:28:49 BST 2015eventId=45139252}";
         b.iter(|| {
-            let (pub_time, watermark) = match tc.process_line(&line) {
-                (Some(pub_time), Some(watermark)) => (pub_time, watermark),
-                _ => panic!("Regex failure!"),
-            };
-            assert_eq!(pub_time, "2015-09-11 09:28:49");
-            assert_eq!(watermark, "Fri Sep 11 09:28:49 BST 2015");
+            let (pub_time, watermark) = tc.process_line(&line);
+            assert_eq!(pub_time, Some("2015-09-11 09:28:49"));
+            assert_eq!(watermark, Some("Fri Sep 11 09:28:49 BST 2015"));
+
+            process_line_incorrect_tester(&mut tc);
         });
     }
 
@@ -68,12 +88,11 @@ mod tests {
                     GB_TRDC&persistence=-1&brokerVersion=1&XMSC_WMQ_BROKER_PUBQ_QMGR=PGBLHDEIS1&br\
                     okerCCDurSubQueue=SYSTEM.JMS.D.CC.GB_TRDC";
         b.iter(|| {
-            let (pub_time, watermark) = match tc.process_line(&line) {
-                (Some(pub_time), Some(watermark)) => (pub_time, watermark),
-                _ => panic!("Regex failure!"),
-            };
-            assert_eq!(pub_time, "2015-09-09 02:35:01");
-            assert_eq!(watermark, "2015-09-09 01:35:03");
+            let (pub_time, watermark) = tc.process_line(&line);
+            assert_eq!(pub_time, Some("2015-09-09 02:35:01"));
+            assert_eq!(watermark, Some("2015-09-09 01:35:03"));
+
+            process_line_incorrect_tester(&mut tc);
         });
     }
 
@@ -85,17 +104,68 @@ mod tests {
                     cachemaint.CacheMaintainerImpl (CacheMaintainerImpl.java:146)     - committed \
                     deletes to disk cache";
         b.iter(|| {
-            let (pub_time, watermark) = match tc.process_line(&line) {
-                (Some(pub_time), Some(watermark)) => (pub_time, watermark),
-                (Some(pub_time), None) => (pub_time, ""),
-                (None, None) => panic!("Regex failure!"),
-                _ => panic!("Unexpected!"),
-            };
-            assert_eq!(pub_time, "2015-09-10 21:06:34");
-            assert_eq!(watermark, "");
+            let (pub_time, watermark) = tc.process_line(&line);
+            assert_eq!(pub_time, Some("2015-09-10 21:06:34"));
+            assert_eq!(watermark, None);
+
+            process_line_incorrect_tester(&mut tc);
         });
     }
 
+    #[test]
+    fn can_increase_hour_count() {
+        let mut result = TcHourResult::new();
+        result.increase_count("2015-11-09 02:01:03", "2015-11-09 01:29:32");
+        result.increase_count("2015-11-09 02:02:03", "2015-11-09 01:19:32");
+        result.increase_count("2015-11-09 02:03:03", "2015-11-09 01:09:32");
+        result.increase_count("2015-11-09 01:04", "2015-11-09 01:09:32");
+        result.increase_count("2015-11-09 01:05", "2015-11-09 01:09:32");
+        result.increase_count("nothing here", "test test");
+        result.increase_count("nothing here", "");
+        result.increase_count("", "");
+        let c = result.increase_count("2015-11-09 01:06", "2015-11-09 01:09:32");
+
+        // return value equals to the map length
+        assert_eq!(c, result.0.len() as usize);
+
+        verify_result_set(&result);
+    }
+
+    #[test]
+    fn can_increase_trimmer_hour_count() {
+        let mut result = TcHourResult::new();
+        result.increase_count("2015-11-09 02:01:03", "");
+        result.increase_count("2015-11-09 02:02:03", "");
+        result.increase_count("2015-11-09 02:03", "");
+        result.increase_count("2015-11-09 01:04", "");
+        result.increase_count("2015-11-09 01:05", "");
+        let c = result.increase_count("2015-11-09 01:06", "");
+
+        // return value equals to the map length
+        assert_eq!(c, result.0.len() as usize);
+
+        verify_result_set(&result);
+    }
+
+    fn verify_result_set(result: &TcHourResult) {
+
+        for (_, val) in &result.0 {
+            // logs can be porperly categoried in map
+            assert_eq!(3, val.done);
+        }
+
+        let keys: Vec<_> = result.0.keys().into_iter().cloned().collect();
+
+        // keys are in order
+        assert_eq!(keys, [2015110901, 2015110902]);
+
+
+        let keys_2 = result.keys_skip_first();
+        let ordered_keys_2 = [2015110902];
+        // The old key can be removed correctly
+        assert_eq!(keys_2, ordered_keys_2);
+
+    }
 
     // #[bench]
     // fn bench_tc_v1_process(b: &mut Bencher) {
@@ -165,56 +235,4 @@ mod tests {
     //         h_v1_pub.join().unwrap();
     //     });
     // }
-
-    #[test]
-    fn can_increase_hour_count() {
-        let mut result = TcHourResult::new();
-        result.increase_count("2015-11-09 02:01:03", "2015-11-09 01:29:32");
-        result.increase_count("2015-11-09 02:02:03", "2015-11-09 01:19:32");
-        result.increase_count("2015-11-09 02:03:03", "2015-11-09 01:09:32");
-        result.increase_count("2015-11-09 01:04", "2015-11-09 01:09:32");
-        result.increase_count("2015-11-09 01:05", "2015-11-09 01:09:32");
-        let c = result.increase_count("2015-11-09 01:06", "2015-11-09 01:09:32");
-
-        // return value equals to the map length
-        assert_eq!(c, result.0.len() as usize);
-
-        verify_result_set(&result);
-    }
-
-    #[test]
-    fn can_increase_trimmer_hour_count() {
-        let mut result = TcHourResult::new();
-        result.increase_count("2015-11-09 02:01:03", "");
-        result.increase_count("2015-11-09 02:02:03", "");
-        result.increase_count("2015-11-09 02:03", "");
-        result.increase_count("2015-11-09 01:04", "");
-        result.increase_count("2015-11-09 01:05", "");
-        let c = result.increase_count("2015-11-09 01:06", "");
-
-        // return value equals to the map length
-        assert_eq!(c, result.0.len() as usize);
-
-        verify_result_set(&result);
-    }
-
-    fn verify_result_set(result: &TcHourResult) {
-
-        for (_, val) in &result.0 {
-            // logs can be porperly categoried in map
-            assert_eq!(3, val.done);
-        }
-
-        let keys: Vec<_> = result.0.keys().into_iter().cloned().collect();
-
-        // keys are in order
-        assert_eq!(keys, [2015110901, 2015110902]);
-
-
-        let keys_2 = result.keys_skip_first();
-        let ordered_keys_2 = [2015110902];
-        // The old key can be removed correctly
-        assert_eq!(keys_2, ordered_keys_2);
-
-    }
 }
