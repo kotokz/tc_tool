@@ -71,6 +71,9 @@ impl HasDelay for TcStat {
                 })
     }
 }
+
+// TcTime is for date time format conversion and help to calculates delta, for example to calculate
+// delay value.
 pub struct TcTime(Tm);
 
 impl ::std::str::FromStr for TcTime {
@@ -115,6 +118,8 @@ impl fmt::Display for TcTime {
     }
 }
 
+/// Implemnts Sub trait for calculate TcTime subtraction
+/// TcTime - TcTime = Duration
 impl ::std::ops::Sub for TcTime {
     type Output = Duration;
 
@@ -177,8 +182,15 @@ pub trait TcResult {
     }
 }
 
+/// TcHourResult is simply just a BTreeMap, using the log hour (usize, for example "2015 09") as 
+/// index and TcStat as content.
+/// Chose BTreeMap is for TcStat order. new hour is the largest record in the map. so we can use 
+/// reverse print to print from latest to oldest.
+/// The record just less than 10 records, so BTreemap performance is very fast.
 pub struct TcHourResult(pub BTreeMap<usize, TcStat>);
 
+/// Implements TcResult trait for TcHourResult.
+/// This Struct is for hour statistic collection.
 impl TcResult for TcHourResult {
     type Result = TcStat;
 
