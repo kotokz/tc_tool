@@ -18,6 +18,8 @@ pub struct TcStat {
 /// This can help the latest reocrd more noticeable from the output table.
 pub trait HasDelay {
     fn delay_time(&self) -> String;
+
+    fn to_str(&self, delay: bool) -> String;
 }
 
 /// Implement the Display trait to transfer the struct to output string
@@ -46,6 +48,53 @@ impl fmt::Display for TcStat {
     }
 }
 
+impl HasDelay for TcStat {
+    /// delay_time calculates the delay from sample time and watermark.
+    /// the display format is "HH:MM:SS"
+    /// shows 0 if missing information, for example missing watermark for pattern match result
+    fn delay_time(&self) -> String {
+        let sample_time = self.last_sample_time.parse::<TcTime>();
+        let time_stamp = self.last_time_stamp.parse::<TcTime>();
+
+        match (sample_time, time_stamp) {
+            (Ok(s), Ok(t)) => {
+                let delay = s - t;
+                format!("{:02}:{:02}:{:02}",
+                        delay.num_hours(),
+                        delay.num_minutes() % 60,
+                        delay.num_seconds() % 60)
+            }
+            _ => "0".to_owned(),
+        }
+    }
+
+    fn to_str(&self, delay: bool) -> String {
+
+        let duration = match self.duration {
+            0 => 1,
+            n => n,
+        };
+
+        // let last_time = time_to_string(&self.last_time_stamp);
+
+        // "duration, last sample time stamp, total, done, last msg time stamp, eff"
+        format!("{}, {}, {}, {}, {:.2}, {}",
+                self.duration,
+                self.last_sample_time,
+                self.done,
+                match self.last_time_stamp.parse::<TcTime>() {
+                    Ok(e) => e.to_string(),
+                    Err(e) => e.to_string(),
+                },
+                (self.done as f32 / duration as f32),
+                if delay {
+                    self.delay_time()
+                } else {
+                    "".to_owned()
+                })
+        // self.delay_time())
+    }
+}
 pub struct TcTime(Tm);
 
 impl ::std::str::FromStr for TcTime {
@@ -118,27 +167,6 @@ impl ::std::ops::Sub for TcTime {
 //         Err(e) => e.clone(),
 //     }
 // }
-
-impl HasDelay for TcStat {
-    /// delay_time calculates the delay from sample time and watermark.
-    /// the display format is "HH:MM:SS"
-    /// shows 0 if missing information, for example missing watermark for pattern match result
-    fn delay_time(&self) -> String {
-        let sample_time = self.last_sample_time.parse::<TcTime>();
-        let time_stamp = self.last_time_stamp.parse::<TcTime>();
-
-        match (sample_time, time_stamp) {
-            (Ok(s), Ok(t)) => {
-                let delay = s - t;
-                format!("{:02}:{:02}:{:02}",
-                        delay.num_hours(),
-                        delay.num_minutes() % 60,
-                        delay.num_seconds() % 60)
-            }
-            _ => "0".to_owned(),
-        }
-    }
-}
 
 pub enum TcResultEnum {
     HourResult(TcHourResult),

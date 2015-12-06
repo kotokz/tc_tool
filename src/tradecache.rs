@@ -133,9 +133,9 @@ impl TcTool {
         for (count, key) in self.get_result().iter().rev().enumerate() {
             match self.get_value(*key) {
                 Some(val) if count == 0 => {
-                    println!("{}-{},{},{}", self.name, count, val, val.delay_time());
+                    println!("{}-{},{}", self.name, count, val.to_str(true));
                 }
-                Some(val) => println!("{}-{},{},", self.name, count, val),
+                Some(val) => println!("{}-{},{}", self.name, count, val.to_str(false)),
                 None => println!("{}-{},{}", self.name, count, "missing value"),
             };
         }
