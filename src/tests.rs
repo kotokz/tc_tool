@@ -40,10 +40,6 @@ mod tests {
                     queue://PGBLHDEIS1/GB_DEIS.GB_TRDC.GB_TRDC.TRD_SOPHML?persistence=-1";
 
         b.iter(|| {
-            // let (pub_time, watermark) = match tc.process_line(&line) {
-            //     (Some(pub_time), Some(watermark)) => (pub_time, watermark),
-            //     _ => panic!("Regex failure!"),
-            // };
             let (pub_time, watermark) = tc.process_line(&line);
             assert_eq!(pub_time, Some("2015-11-08 09:07:54"));
             assert_eq!(watermark, Some("20151028 07:17:17"));
@@ -165,6 +161,23 @@ mod tests {
         // The old key can be removed correctly
         assert_eq!(keys_2, ordered_keys_2);
 
+    }
+
+    #[test]
+    fn can_parse_to_tctime() {
+        let t = "2015-09-08 23:41:28".parse::<TcTime>().unwrap();
+        assert_eq!(t.to_string(), "2015-09-08 23:41:28");
+
+        let t = "Fri Sep 11 07:59:55 BST 2015".parse::<TcTime>().unwrap();
+        assert_eq!(t.to_string(), "2015-09-11 07:59:55");
+
+        let t = "20150918 02:55:33".parse::<TcTime>().unwrap();
+        assert_eq!(t.to_string(), "2015-09-18 02:55:33");
+
+        match "".parse::<TcTime>() {
+            Ok(_) => panic!("Can not be ok"),
+            Err(e) => assert_eq!(e.to_string(), "Not Available"),
+        }
     }
 
     // #[bench]

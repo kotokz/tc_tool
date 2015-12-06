@@ -2,6 +2,8 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use time::*;
+use tcerror::*;
+
 #[derive(Debug)]
 pub struct TcStat {
     pub duration: usize, // for hour data, this should be the minutes for the hour
@@ -16,8 +18,6 @@ pub struct TcStat {
 /// This can help the latest reocrd more noticeable from the output table.
 pub trait HasDelay {
     fn delay_time(&self) -> String;
-    fn parse_time(time: &str) -> Result<Tm, String>;
-    fn time_to_string(time: &str) -> String;
 }
 
 /// Implement the Display trait to transfer the struct to output string
@@ -29,7 +29,7 @@ impl fmt::Display for TcStat {
             n => n,
         };
 
-        let last_time = TcStat::time_to_string(&self.last_time_stamp);
+        // let last_time = time_to_string(&self.last_time_stamp);
 
         // "duration, last sample time stamp, total, done, last msg time stamp, eff"
         write!(f,
@@ -37,13 +37,20 @@ impl fmt::Display for TcStat {
                self.duration,
                self.last_sample_time,
                self.done,
-               last_time,
+               match self.last_time_stamp.parse::<TcTime>() {
+                   Ok(e) => e.to_string(),
+                   Err(e) => e.to_string(),
+               },
                (self.done as f32 / duration as f32))
         // self.delay_time())
     }
 }
 
-impl HasDelay for TcStat {
+pub struct TcTime(Tm);
+
+impl ::std::str::FromStr for TcTime {
+    type Err = TcError;
+
     /// 3 kind of watermark timestamp:
     /// a) "2015-09-08 23:41:28"   same as last sample time  length = 19
     /// "%Y-%m-%d %H:%M:%S"
@@ -52,31 +59,73 @@ impl HasDelay for TcStat {
     /// c) "20150918 02:55:33"  length = 17
     ///    "%Y%m%d %H:%M:%S"
     /// d) ""  length = 0
-    fn parse_time(time: &str) -> Result<Tm, String> {
-        match time.len() {
-            19 => strptime(time, "%Y-%m-%d %H:%M:%S").map_err(|e| e.to_string()),
-            28 => strptime(time, "%a %b %d %T %Z %Y").map_err(|e| e.to_string()),
-            17 => strptime(time, "%Y%m%d %H:%M:%S").map_err(|e| e.to_string()),
-            _ => Err("Not Available".to_owned()),
+    fn from_str(s: &str) -> Result<TcTime, Self::Err> {
+        match s.len() {
+            19 => {
+                strptime(s, "%Y-%m-%d %H:%M:%S")
+                    .map_err(|_| TcError::InvalidTimeFormat)
+                    .map(TcTime)
+            }
+            28 => {
+                strptime(s, "%a %b %d %T %Z %Y")
+                    .map_err(|_| TcError::InvalidTimeFormat)
+                    .map(TcTime)
+            }
+            17 => {
+                strptime(s, "%Y%m%d %H:%M:%S")
+                    .map_err(|_| TcError::InvalidTimeFormat)
+                    .map(TcTime)
+            }
+            _ => Err(TcError::MissingWaterMark),
         }
     }
+}
 
-    fn time_to_string(time: &str) -> String {
-        match TcStat::parse_time(time)
-                  .as_ref()
-                  .map(|time| time.strftime("%Y-%m-%d %H:%M:%S")) {
-            Ok(Ok(t)) => t.to_string(),
-            Ok(Err(e)) => e.to_string(),
-            Err(e) => e.clone(),
+impl fmt::Display for TcTime {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.0.strftime("%Y-%m-%d %H:%M:%S") {
+            Ok(t) => write!(f, "{}", t),
+            Err(e) => write!(f, "{}", e),
         }
     }
+}
 
+impl ::std::ops::Sub for TcTime {
+    type Output = Duration;
+
+    fn sub(self, rhs: TcTime) -> Self::Output {
+        self.0 - rhs.0
+    }
+}
+
+// #[inline]
+// pub fn parse_time(time: &str) -> Result<Tm, String> {
+//     match time.len() {
+//         19 => strptime(time, "%Y-%m-%d %H:%M:%S").map_err(|e| e.to_string()),
+//         28 => strptime(time, "%a %b %d %T %Z %Y").map_err(|e| e.to_string()),
+//         17 => strptime(time, "%Y%m%d %H:%M:%S").map_err(|e| e.to_string()),
+//         _ => Err("Not Available".to_owned()),
+//     }
+// }
+
+// #[inline]
+// pub fn time_to_string(time: &str) -> String {
+//     match parse_time(time)
+//               .as_ref()
+//               .map(|time| time.strftime("%Y-%m-%d %H:%M:%S")) {
+//         Ok(Ok(t)) => t.to_string(),
+//         Ok(Err(e)) => e.to_string(),
+//         Err(e) => e.clone(),
+//     }
+// }
+
+impl HasDelay for TcStat {
     /// delay_time calculates the delay from sample time and watermark.
     /// the display format is "HH:MM:SS"
     /// shows 0 if missing information, for example missing watermark for pattern match result
     fn delay_time(&self) -> String {
-        let sample_time = Self::parse_time(&self.last_sample_time);
-        let time_stamp = Self::parse_time(&self.last_time_stamp);
+        let sample_time = self.last_sample_time.parse::<TcTime>();
+        let time_stamp = self.last_time_stamp.parse::<TcTime>();
 
         match (sample_time, time_stamp) {
             (Ok(s), Ok(t)) => {
