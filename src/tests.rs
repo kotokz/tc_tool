@@ -125,6 +125,18 @@ mod tests {
         assert_eq!(c, result.0.len() as usize);
 
         verify_result_set(&result);
+
+        assert_eq!(result.0.get(&2015110902).unwrap().to_str(false),
+                   "3, 2015-11-09 02:03:03, 3, 2015-11-09 01:09:32, 1.00, ");
+
+        assert_eq!(result.0.get(&2015110902).unwrap().to_str(true),
+                   "3, 2015-11-09 02:03:03, 3, 2015-11-09 01:09:32, 1.00, 00:53:31");
+
+        assert_eq!(result.0.get(&2015110901).unwrap().to_str(false),
+                   "6, 2015-11-09 01:06, 3, 2015-11-09 01:09:32, 0.50, ");
+
+        assert_eq!(result.0.get(&2015110901).unwrap().to_str(true),
+                   "6, 2015-11-09 01:06, 3, 2015-11-09 01:09:32, 0.50, 0");
     }
 
     #[test]
@@ -132,7 +144,7 @@ mod tests {
         let mut result = TcHourResult::new();
         result.increase_count("2015-11-09 02:01:03", "");
         result.increase_count("2015-11-09 02:02:03", "");
-        result.increase_count("2015-11-09 02:03", "");
+        result.increase_count("2015-11-09 02:03:03", "");
         result.increase_count("2015-11-09 01:04", "");
         result.increase_count("2015-11-09 01:05", "");
         let c = result.increase_count("2015-11-09 01:06", "");
@@ -141,6 +153,18 @@ mod tests {
         assert_eq!(c, result.0.len() as usize);
 
         verify_result_set(&result);
+
+        assert_eq!(result.0.get(&2015110902).unwrap().to_str(false),
+                   "3, 2015-11-09 02:03:03, 3, Not Available, 1.00, ");
+
+        assert_eq!(result.0.get(&2015110902).unwrap().to_str(true),
+                   "3, 2015-11-09 02:03:03, 3, Not Available, 1.00, 0");
+
+        assert_eq!(result.0.get(&2015110901).unwrap().to_str(false),
+                   "6, 2015-11-09 01:06, 3, Not Available, 0.50, ");
+
+        assert_eq!(result.0.get(&2015110901).unwrap().to_str(true),
+                   "6, 2015-11-09 01:06, 3, Not Available, 0.50, 0");
     }
 
     fn verify_result_set(result: &TcHourResult) {
