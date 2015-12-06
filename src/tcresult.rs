@@ -22,32 +22,6 @@ pub trait HasDelay {
     fn to_str(&self, delay: bool) -> String;
 }
 
-/// Implement the Display trait to transfer the struct to output string
-/// format: // "duration, last sample time stamp, total, done, last msg time stamp, eff"
-impl fmt::Display for TcStat {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let duration = match self.duration {
-            0 => 1,
-            n => n,
-        };
-
-        // let last_time = time_to_string(&self.last_time_stamp);
-
-        // "duration, last sample time stamp, total, done, last msg time stamp, eff"
-        write!(f,
-               "{}, {}, {}, {}, {:.2}",
-               self.duration,
-               self.last_sample_time,
-               self.done,
-               match self.last_time_stamp.parse::<TcTime>() {
-                   Ok(e) => e.to_string(),
-                   Err(e) => e.to_string(),
-               },
-               (self.done as f32 / duration as f32))
-        // self.delay_time())
-    }
-}
-
 impl HasDelay for TcStat {
     /// delay_time calculates the delay from sample time and watermark.
     /// the display format is "HH:MM:SS"
@@ -67,7 +41,12 @@ impl HasDelay for TcStat {
             _ => "0".to_owned(),
         }
     }
-
+    /// to_str is a helper function to convert TcStat into String.
+    /// follow the format "duration, last sample time stamp, total, done, last msg time stamp, eff, delay"
+    /// *** Paramter ***
+    /// delay: bool   whether display delay value. we don't want to show delay for every row.
+    /// otherwise use is very hard to notice the first line, which is normally the latest
+    /// information
     fn to_str(&self, delay: bool) -> String {
 
         let duration = match self.duration {
@@ -75,9 +54,7 @@ impl HasDelay for TcStat {
             n => n,
         };
 
-        // let last_time = time_to_string(&self.last_time_stamp);
-
-        // "duration, last sample time stamp, total, done, last msg time stamp, eff"
+        // "duration, last sample time stamp, total, done, last msg time stamp, eff, delay"
         format!("{}, {}, {}, {}, {:.2}, {}",
                 self.duration,
                 self.last_sample_time,
@@ -92,7 +69,6 @@ impl HasDelay for TcStat {
                 } else {
                     "".to_owned()
                 })
-        // self.delay_time())
     }
 }
 pub struct TcTime(Tm);
