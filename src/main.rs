@@ -12,7 +12,6 @@ mod tradecache;
 mod tcresult;
 mod tclogparser;
 mod tcerror;
-mod tests;
 
 use std::thread;
 use tradecache::*;

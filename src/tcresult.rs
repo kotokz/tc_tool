@@ -92,7 +92,7 @@ impl ::std::str::FromStr for TcTime {
     /// c) "20150918 02:55:33"  length = 17
     ///    "%Y%m%d %H:%M:%S"
     /// d) ""  length = 0
-    fn from_str(s: &str) -> Result<TcTime, Self::Err> {
+    fn from_str(s: &str) -> Result<TcTime> {
         match s.len() {
             19 => {
                 strptime(s, "%Y-%m-%d %H:%M:%S")
