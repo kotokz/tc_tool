@@ -6,11 +6,16 @@ use tcerror::*;
 
 #[derive(Debug)]
 pub struct TcStat {
-    pub duration: usize, // for hour data, this should be the minutes for the hour
-    pub last_sample_time: String, // should be the last msg time for this hour
-    pub total: usize, // batch size, for hour stat this should be 0
-    pub done: usize, // how many works done for this hour
-    pub last_time_stamp: String, // should be the last msg DB write time for this hour
+    /// for hour data, this should be the minutes for the hour
+    pub duration: usize,
+    /// should be the last msg time for this hour
+    pub last_sample_time: String,
+    /// batch size, for hour stat this should be 0
+    pub total: usize,
+    /// how many works done for this hour
+    pub done: usize,
+    /// should be the last msg DB write time for this hour
+    pub last_time_stamp: String,
 }
 
 /// HasDelay provides interface for owner to get delay time.
@@ -72,8 +77,8 @@ impl HasDelay for TcStat {
     }
 }
 
-// TcTime is for date time format conversion and help to calculates delta, for example to calculate
-// delay value.
+/// TcTime is for date time format conversion and help to calculates delta, for example to calculate
+/// delay value.
 pub struct TcTime(Tm);
 
 impl ::std::str::FromStr for TcTime {
@@ -104,7 +109,8 @@ impl ::std::str::FromStr for TcTime {
                     .map_err(|_| TcError::InvalidTimeFormat)
                     .map(TcTime)
             }
-            _ => Err(TcError::MissingWaterMark),
+            0 => Err(TcError::MissingWaterMark),
+            _ => Err(TcError::InvalidTimeFormat),
         }
     }
 }
@@ -201,7 +207,7 @@ impl TcResult for TcHourResult {
     fn increase_count(&mut self, time: &str, watermark: &str) -> usize {
         let split: Vec<_> = time.split(':').collect();
         let (hour, min): (usize, usize) = match &split[..] {
-            // todo: better error handling required
+            // [TODO]: Better error handling required - 2015-12-07 10:07P
             [ref hour, ref min, _] => (Self::trim_index(hour), min.parse().unwrap()),
             [ref hour, ref min] => (Self::trim_index(hour), min.parse().unwrap()),
             _ => return self.0.len(),
@@ -234,5 +240,105 @@ impl TcResult for TcHourResult {
 
     fn get_value(&self, key: usize) -> Option<&Self::Result> {
         self.0.get(&key)
+    }
+}
+
+mod tests {
+    use super::*;
+
+    #[test]
+    fn can_increase_hour_count() {
+        let mut result = TcHourResult::new();
+        result.increase_count("2015-11-09 02:01:03", "2015-11-09 01:29:32");
+        result.increase_count("2015-11-09 02:02:03", "2015-11-09 01:19:32");
+        result.increase_count("2015-11-09 02:03:03", "2015-11-09 01:09:32");
+        result.increase_count("2015-11-09 01:04", "2015-11-09 01:09:32");
+        result.increase_count("2015-11-09 01:05", "2015-11-09 01:09:32");
+        result.increase_count("nothing here", "test test");
+        result.increase_count("nothing here", "");
+        result.increase_count("", "");
+        let c = result.increase_count("2015-11-09 01:06", "2015-11-09 01:09:32");
+
+        // return value equals to the map length
+        assert_eq!(c, result.0.len() as usize);
+
+        verify_result_set(&result);
+
+        assert_eq!(result.0.get(&2015110902).unwrap().to_str(false),
+                   "3, 2015-11-09 02:03:03, 3, 2015-11-09 01:09:32, 1.00, ");
+
+        assert_eq!(result.0.get(&2015110902).unwrap().to_str(true),
+                   "3, 2015-11-09 02:03:03, 3, 2015-11-09 01:09:32, 1.00, 00:53:31");
+
+        assert_eq!(result.0.get(&2015110901).unwrap().to_str(false),
+                   "6, 2015-11-09 01:06, 3, 2015-11-09 01:09:32, 0.50, ");
+
+        assert_eq!(result.0.get(&2015110901).unwrap().to_str(true),
+                   "6, 2015-11-09 01:06, 3, 2015-11-09 01:09:32, 0.50, 0");
+    }
+
+    #[test]
+    fn can_increase_trimmer_hour_count() {
+        let mut result = TcHourResult::new();
+        result.increase_count("2015-11-09 02:01:03", "");
+        result.increase_count("2015-11-09 02:02:03", "");
+        result.increase_count("2015-11-09 02:03:03", "");
+        result.increase_count("2015-11-09 01:04", "");
+        result.increase_count("2015-11-09 01:05", "");
+        let c = result.increase_count("2015-11-09 01:06", "");
+
+        // return value equals to the map length
+        assert_eq!(c, result.0.len() as usize);
+
+        verify_result_set(&result);
+
+        assert_eq!(result.0.get(&2015110902).unwrap().to_str(false),
+                   "3, 2015-11-09 02:03:03, 3, Not Available, 1.00, ");
+
+        assert_eq!(result.0.get(&2015110902).unwrap().to_str(true),
+                   "3, 2015-11-09 02:03:03, 3, Not Available, 1.00, 0");
+
+        assert_eq!(result.0.get(&2015110901).unwrap().to_str(false),
+                   "6, 2015-11-09 01:06, 3, Not Available, 0.50, ");
+
+        assert_eq!(result.0.get(&2015110901).unwrap().to_str(true),
+                   "6, 2015-11-09 01:06, 3, Not Available, 0.50, 0");
+    }
+
+    fn verify_result_set(result: &TcHourResult) {
+
+        for (_, val) in &result.0 {
+            // logs can be porperly categoried in map
+            assert_eq!(3, val.done);
+        }
+
+        let keys: Vec<_> = result.0.keys().into_iter().cloned().collect();
+
+        // keys are in order
+        assert_eq!(keys, [2015110901, 2015110902]);
+
+
+        let keys_2 = result.keys_skip_first();
+        let ordered_keys_2 = [2015110902];
+        // The old key can be removed correctly
+        assert_eq!(keys_2, ordered_keys_2);
+
+    }
+
+    #[test]
+    fn can_parse_to_tctime() {
+        let t = "2015-09-08 23:41:28".parse::<TcTime>().unwrap();
+        assert_eq!(t.to_string(), "2015-09-08 23:41:28");
+
+        let t = "Fri Sep 11 07:59:55 BST 2015".parse::<TcTime>().unwrap();
+        assert_eq!(t.to_string(), "2015-09-11 07:59:55");
+
+        let t = "20150918 02:55:33".parse::<TcTime>().unwrap();
+        assert_eq!(t.to_string(), "2015-09-18 02:55:33");
+
+        match "".parse::<TcTime>() {
+            Ok(_) => panic!("Can not be ok"),
+            Err(e) => assert_eq!(e.to_string(), "Not Available"),
+        }
     }
 }

@@ -24,6 +24,10 @@ pub trait TcLogParser {
     /// if matched,  return Ok with optional watermak string.
     /// if not matched, return Err
     fn match_line<'a, 'b>(&'a self, line: &'b str) -> Result<Option<&'b str>, TcError>;
+
+    /// get_timestamp extract the time stamp from the beigining of the matched line.
+    /// The time format is known in this content so hardcoded in the function as default
+    /// implementation.
     fn get_timestamp<'a, 'b>(&'a self, line: &'b str) -> Option<&'b str> {
         match TIMESTAMP_PATTERN.captures(line) {
             Some(t) => t.at(1),
