@@ -243,6 +243,84 @@ impl TcResult for TcHourResult {
     }
 }
 
+pub struct TcBatchResult {
+    /// BTreeMap for the batch, reuse TcStat to hold the statistic for each batch
+    /// usize is the batch start time, is only for batch order
+    map: BTreeMap<usize, TcStat>,
+
+    /// temp_count should be always zero when start processing a new file. Untill we meet a batch
+    /// indicator, the count should be used in 'increase_count' method. Once we meet a batch
+    /// indicator, we should switch to use the batch stat in map. temp_count should be
+    /// remained unchange untill the file finished process. then we should either add it into
+    /// leftover_count (if we don't have batch indicator line in this file) or replace left_over
+    /// count with temp_count value (the left over count should be added into the last batch of this file)
+    temp_count: usize,
+
+    /// leftover_count means the counts which cannot be recognized as which batch after processed a
+    /// file. if the next file has batch, this number should be added into the last batch of the
+    /// next file.
+    leftover_count: usize,
+
+    /// current_batch is the current batch index. We need to keep this for quick reference.
+    /// When the current_batch is Some, it means we are in the known batch scope, all the counts
+    /// will be go into the batch statistic.
+    /// When the current_batch is None, it means we don't know these counts in which batch scope,
+    /// likely we are in a the begining of a new file, so keep the counts in temp_count.
+    current_batch: Option<usize>,
+}
+
+impl TcResult for TcBatchResult {
+    type Result = TcStat;
+
+    fn new() -> Self {
+        TcBatchResult {
+            map: BTreeMap::<usize, TcStat>::new(),
+            temp_count: 0,
+            leftover_count: 0,
+            current_batch: None,
+        }
+    }
+
+    fn increase_count(&mut self, time: &str, watermark: &str) -> usize {
+        let split: Vec<_> = time.split(':').collect();
+        let (hour, min): (usize, usize) = match &split[..] {
+            // [TODO]: Better error handling required - 2015-12-07 10:07P
+            [ref hour, ref min, _] => (Self::trim_index(hour), min.parse().unwrap()),
+            [ref hour, ref min] => (Self::trim_index(hour), min.parse().unwrap()),
+            _ => return self.map.len(),
+        };
+        {
+            let mut result = self.map
+                                 .entry(hour)
+                                 .or_insert(TcStat {
+                                     duration: min,
+                                     last_sample_time: time.to_owned(),
+                                     total: 0,
+                                     done: 0,
+                                     last_time_stamp: watermark.to_owned(),
+                                 });
+
+            result.done += 1;
+            if result.duration <= min {
+                result.duration = min;
+                result.last_sample_time = time.to_owned();
+                result.last_time_stamp = watermark.to_owned();
+            }
+        }
+        self.map.len() as usize
+    }
+
+    fn keys_skip_first(&self) -> Vec<usize> {
+        // self.sorted_keys().into_iter().skip(1).collect()
+        self.map.keys().cloned().skip(1).collect()
+    }
+
+    fn get_value(&self, key: usize) -> Option<&Self::Result> {
+        self.map.get(&key)
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
