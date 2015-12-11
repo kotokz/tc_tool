@@ -21,10 +21,10 @@ fn main() {
     println!("Name, duration, lastSampleTime, Done, lastMsgTimeStamp, Efficiency(per min), Delay");
 
     let monitors: Vec<_> = vec![
-        new_ng_publisher(),
-        new_ng_consumer(),
-        new_v1_publisher(),
-        new_ng_trimmer(),
+        TcTool::new_ng_publisher(),
+        TcTool::new_ng_consumer(),
+        TcTool::new_v1_publisher(),
+        TcTool::new_ng_trimmer(),
     ];
 
     let handlers: Vec<_> = monitors.into_iter()

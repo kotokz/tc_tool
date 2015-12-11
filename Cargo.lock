@@ -2,7 +2,7 @@
 name = "tc_tool"
 version = "0.1.0"
 dependencies = [
- "clippy 0.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.30 (registry+https://github.com/rust-lang/crates.io-index)",
  "glob 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.43 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -19,7 +19,7 @@ dependencies = [
 
 [[package]]
 name = "clippy"
-version = "0.0.27"
+version = "0.0.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "unicode-normalization 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
