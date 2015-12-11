@@ -1,5 +1,5 @@
 use regex::Regex;
-use tcresult::TcResult;
+use tcresult::*;
 use tcerror::TcError;
 
 lazy_static! {
@@ -10,7 +10,7 @@ pub trait TcLogParser {
     /// process_line use match_line to verify the line and extract the watermark from it.
     /// If the input line is the expected line, then also call get_timestamp to extract the
     /// time stamp.We need both timestamp and watermark to update the result set.
-    fn process_line<'a>(&mut self, line: &'a str) -> (Option<&'a str>, Option<&'a str>) {
+    fn extract_times<'a>(&mut self, line: &'a str) -> (Option<&'a str>, Option<&'a str>) {
         match self.match_line(line) {
             Ok(r) => {
                 let t = self.get_timestamp(line);
@@ -34,18 +34,56 @@ pub trait TcLogParser {
             None => None,
         }
     }
+
+    fn increase_result(&mut self, time: &str, watermark: &str) -> Option<usize>;
+
+
+    fn process_line(&mut self, line: &str) -> Option<usize>;
+
+    fn print_result(&self, name: &str);
 }
 
 pub enum TcParser {
-    Regex(RegexParser),
-    Pattern(PatternParser),
+    Regex(RegexParser, TcResultEnum),
+    Pattern(PatternParser, TcResultEnum),
 }
 
-impl TcParser {
-    pub fn match_line<'a>(&self, line: &'a str) -> Result<Option<&'a str>, TcError> {
+impl TcLogParser for TcParser {
+    fn match_line<'a>(&self, line: &'a str) -> Result<Option<&'a str>, TcError> {
         match *self {
-            TcParser::Regex(ref r) => r.match_line(line),
-            TcParser::Pattern(ref r) => r.match_line(line),
+            TcParser::Regex(ref r, _) => r.match_line(line),
+            TcParser::Pattern(ref r, _) => r.match_line(line),
+        }
+    }
+
+    fn increase_result(&mut self, time: &str, watermark: &str) -> Option<usize> {
+        match *self {
+            TcParser::Regex(_, ref mut r) => r.increase_result(time, watermark),
+            TcParser::Pattern(_, ref mut r) => r.increase_result(time, watermark),
+        }
+    }
+    fn process_line(&mut self, line: &str) -> Option<usize> {
+        match self.extract_times(&line) {
+            (Some(pub_time), Some(watermark)) => self.increase_result(pub_time, watermark),
+            (Some(pub_time), None) => self.increase_result(pub_time, ""),
+            _ => None,
+        }
+    }
+
+    fn print_result(&self, name: &str) {
+        let result = match *self {
+            TcParser::Regex(_, ref r) => r,
+            TcParser::Pattern(_, ref r) => r,
+        };
+        // skip the first value, normally the record too old so likely to be incomplete.
+        for (count, key) in result.get_result().iter().rev().enumerate() {
+            match result.get_value(*key) {
+                Some(val) if count == 0 => {
+                    println!("{}-{},{}", name, count, val.to_str(true));
+                }
+                Some(val) => println!("{}-{},{}", name, count, val.to_str(false)),
+                None => println!("{}-{},{}", name, count, "missing value"),
+            };
         }
     }
 }

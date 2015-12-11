@@ -161,7 +161,7 @@ pub enum TcResultEnum {
 }
 
 impl TcResultEnum {
-    pub fn increase_result(&mut self, time: &str, watermark: &str) -> usize {
+    pub fn increase_result(&mut self, time: &str, watermark: &str) -> Option<usize> {
         match *self {
             TcResultEnum::HourResult(ref mut h) => h.increase_count(time, watermark),
             TcResultEnum::BatchResult(ref mut h) => h.increase_count(time, watermark),
@@ -193,7 +193,7 @@ pub trait TcResult {
     /// watermark: the timestamp of the trade DB write time.
     ///
     /// Returns the current count of TcResult, for early exit purpose
-    fn increase_count(&mut self, time: &str, watermark: &str) -> usize;
+    fn increase_count(&mut self, time: &str, watermark: &str) -> Option<usize>;
     fn new() -> Self;
 
     /// Returns the keys without the oldest record
@@ -227,13 +227,13 @@ impl TcResult for TcHourResult {
         TcHourResult(BTreeMap::<usize, TcStat>::new())
     }
 
-    fn increase_count(&mut self, time: &str, watermark: &str) -> usize {
+    fn increase_count(&mut self, time: &str, watermark: &str) -> Option<usize> {
         let split: Vec<_> = time.split(':').collect();
         let (hour, min): (usize, usize) = match &split[..] {
             // [TODO]: Better error handling required - 2015-12-07 10:07P
             [ref hour, ref min, _] => (Self::trim_index(hour), min.parse().unwrap()),
             [ref hour, ref min] => (Self::trim_index(hour), min.parse().unwrap()),
-            _ => return self.0.len(),
+            _ => return None,
         };
         {
             let mut result = self.0
@@ -253,7 +253,7 @@ impl TcResult for TcHourResult {
                 result.last_time_stamp = watermark.to_owned();
             }
         }
-        self.0.len() as usize
+        Some(self.0.len() as usize)
     }
 
     fn keys_skip_first(&self) -> Vec<usize> {
@@ -304,13 +304,13 @@ impl TcResult for TcBatchResult {
         }
     }
 
-    fn increase_count(&mut self, time: &str, watermark: &str) -> usize {
+    fn increase_count(&mut self, time: &str, watermark: &str) -> Option<usize> {
         let split: Vec<_> = time.split(':').collect();
         let (hour, min): (usize, usize) = match &split[..] {
             // [TODO]: Better error handling required - 2015-12-07 10:07P
             [ref hour, ref min, _] => (Self::trim_index(hour), min.parse().unwrap()),
             [ref hour, ref min] => (Self::trim_index(hour), min.parse().unwrap()),
-            _ => return self.map.len(),
+            _ => return None,
         };
         {
             let mut result = self.map
@@ -330,7 +330,7 @@ impl TcResult for TcBatchResult {
                 result.last_time_stamp = watermark.to_owned();
             }
         }
-        self.map.len() as usize
+        Some(self.map.len() as usize)
     }
 
     fn keys_skip_first(&self) -> Vec<usize> {
@@ -361,7 +361,7 @@ mod tests {
         let c = result.increase_count("2015-11-09 01:06", "2015-11-09 01:09:32");
 
         // return value equals to the map length
-        assert_eq!(c, result.0.len() as usize);
+        assert_eq!(c.unwrap(), result.0.len() as usize);
 
         verify_result_set(&result);
 
@@ -389,7 +389,7 @@ mod tests {
         let c = result.increase_count("2015-11-09 01:06", "");
 
         // return value equals to the map length
-        assert_eq!(c, result.0.len() as usize);
+        assert_eq!(c.unwrap(), result.0.len() as usize);
 
         verify_result_set(&result);
 

@@ -12,7 +12,6 @@ pub struct TcTool {
     name: String,
     path: String,
     pattern: TcParser,
-    result: TcResultEnum,
 }
 
 impl TcTool {
@@ -44,8 +43,8 @@ impl TcTool {
         TcTool {
             name: name.to_owned(),
             path: path.to_owned(),
-            pattern: TcParser::Regex(RegexParser(Regex::new(pattern).unwrap())),
-            result: TcResultEnum::HourResult(TcHourResult::new()),
+            pattern: TcParser::Regex(RegexParser(Regex::new(pattern).unwrap()),
+                                     TcResultEnum::HourResult(TcHourResult::new())),
         }
     }
 
@@ -53,16 +52,16 @@ impl TcTool {
         TcTool {
             name: name.to_owned(),
             path: path.to_owned(),
-            pattern: TcParser::Pattern(PatternParser(pattern.to_owned())),
-            result: TcResultEnum::HourResult(TcHourResult::new()),
+            pattern: TcParser::Pattern(PatternParser(pattern.to_owned()),
+                                       TcResultEnum::HourResult(TcHourResult::new())),
         }
     }
     pub fn with_regex_batch(name: &str, path: &str, pattern: &str) -> TcTool {
         TcTool {
             name: name.to_owned(),
             path: path.to_owned(),
-            pattern: TcParser::Regex(RegexParser(Regex::new(pattern).unwrap())),
-            result: TcResultEnum::BatchResult(TcHourResult::new()),
+            pattern: TcParser::Regex(RegexParser(Regex::new(pattern).unwrap()),
+                                     TcResultEnum::BatchResult(TcHourResult::new())),
         }
     }
 
@@ -99,12 +98,9 @@ impl TcTool {
             let file = File::open(&name).expect("Failed to open log file.");
             let mut c_count = 0;
             for line in BufReader::new(file).lines().filter_map(|line| line.ok()) {
-                c_count = match self.process_line(&line) {
-                    (Some(pub_time), Some(watermark)) => {
-                        self.result.increase_result(pub_time, watermark)
-                    }
-                    (Some(pub_time), None) => self.result.increase_result(pub_time, ""),
-                    _ => continue,
+                c_count = match self.pattern.process_line(&line) {
+                    Some(c) => c,
+                    None => continue,
                 };
 
             }
@@ -116,22 +112,7 @@ impl TcTool {
     }
 
     pub fn print_result(&self) {
-        // skip the first value, normally the record too old so likely to be incomplete.
-        for (count, key) in self.result.get_result().iter().rev().enumerate() {
-            match self.result.get_value(*key) {
-                Some(val) if count == 0 => {
-                    println!("{}-{},{}", self.name, count, val.to_str(true));
-                }
-                Some(val) => println!("{}-{},{}", self.name, count, val.to_str(false)),
-                None => println!("{}-{},{}", self.name, count, "missing value"),
-            };
-        }
-    }
-}
-
-impl TcLogParser for TcTool {
-    fn match_line<'a>(&self, line: &'a str) -> Result<Option<&'a str>, TcError> {
-        self.pattern.match_line(line)
+        self.pattern.print_result(&self.name);
     }
 }
 
@@ -152,7 +133,7 @@ mod tests {
             ];
 
         for line in lines {
-            let (pub_time, watermark) = tc.process_line(&line);
+            let (pub_time, watermark) = tc.pattern.extract_times(&line);
             assert_eq!(pub_time, None);
             assert_eq!(watermark, None);
         }
@@ -175,7 +156,7 @@ mod tests {
                     queue://PGBLHDEIS1/GB_DEIS.GB_TRDC.GB_TRDC.TRD_SOPHML?persistence=-1";
 
         b.iter(|| {
-            let (pub_time, watermark) = tc.process_line(&line);
+            let (pub_time, watermark) = tc.pattern.extract_times(&line);
             assert_eq!(pub_time, Some("2015-11-08 09:07:54"));
             assert_eq!(watermark, Some("20151028 07:17:17"));
 
@@ -194,7 +175,7 @@ mod tests {
                     {id=I|77787473;type=InstrumentGenericUpdate;version=45139252;timestamp=Fri \
                     Sep 11 09:28:49 BST 2015eventId=45139252}";
         b.iter(|| {
-            let (pub_time, watermark) = tc.process_line(&line);
+            let (pub_time, watermark) = tc.pattern.extract_times(&line);
             assert_eq!(pub_time, Some("2015-09-11 09:28:49"));
             assert_eq!(watermark, Some("Fri Sep 11 09:28:49 BST 2015"));
 
@@ -219,7 +200,7 @@ mod tests {
                     GB_TRDC&persistence=-1&brokerVersion=1&XMSC_WMQ_BROKER_PUBQ_QMGR=PGBLHDEIS1&br\
                     okerCCDurSubQueue=SYSTEM.JMS.D.CC.GB_TRDC";
         b.iter(|| {
-            let (pub_time, watermark) = tc.process_line(&line);
+            let (pub_time, watermark) = tc.pattern.extract_times(&line);
             assert_eq!(pub_time, Some("2015-09-09 02:35:01"));
             assert_eq!(watermark, Some("2015-09-09 01:35:03"));
 
@@ -235,7 +216,7 @@ mod tests {
                     cachemaint.CacheMaintainerImpl (CacheMaintainerImpl.java:146)     - committed \
                     deletes to disk cache";
         b.iter(|| {
-            let (pub_time, watermark) = tc.process_line(&line);
+            let (pub_time, watermark) = tc.pattern.extract_times(&line);
             assert_eq!(pub_time, Some("2015-09-10 21:06:34"));
             assert_eq!(watermark, None);
 
