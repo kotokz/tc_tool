@@ -4,7 +4,7 @@ use std::fmt;
 use time::*;
 use tcerror::*;
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct TcStat {
     /// for hour data, this should be the minutes for the hour
     pub duration: usize,
@@ -18,20 +18,34 @@ pub struct TcStat {
     pub last_time_stamp: String,
 }
 
-/// HasDelay provides interface for owner to get delay time.
-/// This is to let the owner can cutomize the output, for example only display delay info for latest record.
-/// This can help the latest reocrd more noticeable from the output table.
-pub trait HasDelay {
-    fn delay_time(&self) -> String;
+impl ::std::ops::Add for TcStat {
+    type Output = TcStat;
 
-    fn to_str(&self, delay: bool) -> String;
+    fn add(self, rhs: TcStat) -> Self::Output {
+        TcStat {
+            duration: self.duration + rhs.duration,
+            last_sample_time: self.last_sample_time.clone(),
+            total: self.total + self.total,
+            done: self.done,
+            last_time_stamp: self.last_sample_time.clone(),
+        }
+    }
 }
 
-impl HasDelay for TcStat {
+impl TcStat {
+    pub fn new() -> TcStat {
+        TcStat {
+            duration: 0,
+            last_sample_time: "".to_owned(),
+            total: 0,
+            done: 0,
+            last_time_stamp: "".to_owned(),
+        }
+    }
     /// delay_time calculates the delay from sample time and watermark.
     /// the display format is "HH:MM:SS"
     /// shows 0 if missing information, for example missing watermark for pattern match result
-    fn delay_time(&self) -> String {
+    pub fn delay_time(&self) -> String {
         let sample_time = self.last_sample_time.parse::<TcTime>();
         let time_stamp = self.last_time_stamp.parse::<TcTime>();
 
@@ -52,7 +66,7 @@ impl HasDelay for TcStat {
     /// delay: bool   whether display delay value. we don't want to show delay for every row.
     /// otherwise use is very hard to notice the first line, which is normally the latest
     /// information
-    fn to_str(&self, delay: bool) -> String {
+    pub fn to_str(&self, delay: bool) -> String {
 
         let duration = match self.duration {
             0 => 1,
@@ -181,6 +195,13 @@ impl TcResultEnum {
             TcResultEnum::BatchResult(ref h) => h.get_value(key),
         }
     }
+
+    pub fn get_size(&self) -> usize {
+        match *self {
+            TcResultEnum::HourResult(ref h) => h.0.len() as usize,
+            TcResultEnum::BatchResult(ref h) => h.0.len() as usize,
+        }
+    }
 }
 
 pub trait TcResult {
@@ -277,12 +298,12 @@ pub struct TcBatchResult {
     /// remained unchange untill the file finished process. then we should either add it into
     /// leftover_count (if we don't have batch indicator line in this file) or replace left_over
     /// count with temp_count value (the left over count should be added into the last batch of this file)
-    temp_count: usize,
+    temp_count: TcStat,
 
     /// leftover_count means the counts which cannot be recognized as which batch after processed a
     /// file. if the next file has batch, this number should be added into the last batch of the
     /// next file.
-    leftover_count: usize,
+    leftover_count: TcStat,
 
     /// current_batch is the current batch index. We need to keep this for quick reference.
     /// When the current_batch is Some, it means we are in the known batch scope, all the counts
@@ -298,8 +319,8 @@ impl TcResult for TcBatchResult {
     fn new() -> Self {
         TcBatchResult {
             map: BTreeMap::<usize, TcStat>::new(),
-            temp_count: 0,
-            leftover_count: 0,
+            temp_count: TcStat::new(),
+            leftover_count: TcStat::new(),
             current_batch: None,
         }
     }
@@ -312,24 +333,6 @@ impl TcResult for TcBatchResult {
             [ref hour, ref min] => (Self::trim_index(hour), min.parse().unwrap()),
             _ => return None,
         };
-        {
-            let mut result = self.map
-                                 .entry(hour)
-                                 .or_insert(TcStat {
-                                     duration: min,
-                                     last_sample_time: time.to_owned(),
-                                     total: 0,
-                                     done: 0,
-                                     last_time_stamp: watermark.to_owned(),
-                                 });
-
-            result.done += 1;
-            if result.duration <= min {
-                result.duration = min;
-                result.last_sample_time = time.to_owned();
-                result.last_time_stamp = watermark.to_owned();
-            }
-        }
         Some(self.map.len() as usize)
     }
 
@@ -340,6 +343,29 @@ impl TcResult for TcBatchResult {
 
     fn get_value(&self, key: usize) -> Option<&Self::Result> {
         self.map.get(&key)
+    }
+}
+
+impl TcBatchResult {
+    /// wrap_up_file will perform post-file processing for batch result.
+    /// like reset current_batch, recalculate temp_count and leftover_count.
+    fn wrap_up_file(&mut self) -> usize {
+        if let Some(batch) = self.current_batch {
+            // the leftover_count from previous should be part of the last batch of this file
+            // if batch is some, then add the count into batch.
+            let mut result = self.map
+                                 .entry(batch)
+                                 .or_insert(TcStat::new());
+
+            result.done += self.leftover_count.done;
+            result.duration = self.leftover_count.duration;
+            result.last_sample_time = self.leftover_count.last_sample_time.clone();
+            result.last_time_stamp = self.leftover_count.last_time_stamp.clone();
+            self.leftover_count = self.temp_count.clone();
+        } else {
+            self.leftover_count = self.leftover_count.clone() + self.temp_count.clone();
+        }
+        self.map.len() as usize
     }
 }
 

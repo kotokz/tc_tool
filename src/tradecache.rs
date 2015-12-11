@@ -6,7 +6,6 @@ use std::fs::File;
 use tclogparser::*;
 use tcresult::*;
 use regex::Regex;
-use tcerror::TcError;
 
 pub struct TcTool {
     name: String,
@@ -91,21 +90,16 @@ impl TcTool {
     }
     /// Process files which matched the path pattern. for example: directory/file*
     pub fn process_directory(&mut self, count: usize) {
-        let results: Vec<_> = glob(&self.path).unwrap().filter_map(|r| r.ok()).collect();
-        let results = Self::sorted_path(&results);
+        let files: Vec<_> = glob(&self.path).unwrap().filter_map(|r| r.ok()).collect();
+        let files = Self::sorted_path(&files);
 
-        for name in results {
+        for name in files {
             let file = File::open(&name).expect("Failed to open log file.");
-            let mut c_count = 0;
             for line in BufReader::new(file).lines().filter_map(|line| line.ok()) {
-                c_count = match self.pattern.process_line(&line) {
-                    Some(c) => c,
-                    None => continue,
-                };
-
+                self.pattern.process_line(&line);
             }
             // we have enough samples, stop!
-            if c_count > count {
+            if self.pattern.wrap_up_file() > count {
                 return;
             }
         }
@@ -119,7 +113,6 @@ impl TcTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tclogparser::*;
     use test::Bencher;
     use std::thread;
 
