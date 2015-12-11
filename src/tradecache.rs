@@ -11,7 +11,7 @@ use tcerror::TcError;
 pub struct TcTool {
     name: String,
     path: String,
-    pattern: RegexParser,
+    pattern: TcParser,
     result: TcResultEnum,
 }
 
@@ -29,9 +29,9 @@ impl TcTool {
     }
 
     pub fn new_ng_trimmer() -> TcTool {
-        Self::with_regex_hour("NG_Trimer",
-                              "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*",
-                              r"committed")
+        Self::with_pattern_hour("NG_Trimer",
+                                "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*",
+                                "committed")
     }
 
     pub fn new_v1_publisher() -> TcTool {
@@ -44,37 +44,25 @@ impl TcTool {
         TcTool {
             name: name.to_owned(),
             path: path.to_owned(),
-            pattern: RegexParser(Regex::new(pattern).unwrap()),
+            pattern: TcParser::Regex(RegexParser(Regex::new(pattern).unwrap())),
             result: TcResultEnum::HourResult(TcHourResult::new()),
         }
     }
 
+    pub fn with_pattern_hour(name: &str, path: &str, pattern: &str) -> TcTool {
+        TcTool {
+            name: name.to_owned(),
+            path: path.to_owned(),
+            pattern: TcParser::Pattern(PatternParser(pattern.to_owned())),
+            result: TcResultEnum::HourResult(TcHourResult::new()),
+        }
+    }
     pub fn with_regex_batch(name: &str, path: &str, pattern: &str) -> TcTool {
         TcTool {
             name: name.to_owned(),
             path: path.to_owned(),
-            pattern: RegexParser(Regex::new(pattern).unwrap()),
+            pattern: TcParser::Regex(RegexParser(Regex::new(pattern).unwrap())),
             result: TcResultEnum::BatchResult(TcHourResult::new()),
-        }
-    }
-    fn increase_result(&mut self, time: &str, watermark: &str) -> usize {
-        match self.result {
-            TcResultEnum::HourResult(ref mut h) => h.increase_count(time, watermark),
-            TcResultEnum::BatchResult(ref mut h) => h.increase_count(time, watermark),
-        }
-    }
-
-    fn get_result(&self) -> Vec<usize> {
-        match self.result {
-            TcResultEnum::HourResult(ref h) => h.keys_skip_first(),
-            TcResultEnum::BatchResult(ref h) => h.keys_skip_first(),
-        }
-    }
-
-    fn get_value(&self, key: usize) -> Option<&TcStat> {
-        match self.result {
-            TcResultEnum::HourResult(ref h) => h.get_value(key),
-            TcResultEnum::BatchResult(ref h) => h.get_value(key),
         }
     }
 
@@ -112,8 +100,10 @@ impl TcTool {
             let mut c_count = 0;
             for line in BufReader::new(file).lines().filter_map(|line| line.ok()) {
                 c_count = match self.process_line(&line) {
-                    (Some(pub_time), Some(watermark)) => self.increase_result(pub_time, watermark),
-                    (Some(pub_time), None) => self.increase_result(pub_time, ""),
+                    (Some(pub_time), Some(watermark)) => {
+                        self.result.increase_result(pub_time, watermark)
+                    }
+                    (Some(pub_time), None) => self.result.increase_result(pub_time, ""),
                     _ => continue,
                 };
 
@@ -127,8 +117,8 @@ impl TcTool {
 
     pub fn print_result(&self) {
         // skip the first value, normally the record too old so likely to be incomplete.
-        for (count, key) in self.get_result().iter().rev().enumerate() {
-            match self.get_value(*key) {
+        for (count, key) in self.result.get_result().iter().rev().enumerate() {
+            match self.result.get_value(*key) {
                 Some(val) if count == 0 => {
                     println!("{}-{},{}", self.name, count, val.to_str(true));
                 }

@@ -160,6 +160,29 @@ pub enum TcResultEnum {
     BatchResult(TcHourResult),
 }
 
+impl TcResultEnum {
+    pub fn increase_result(&mut self, time: &str, watermark: &str) -> usize {
+        match *self {
+            TcResultEnum::HourResult(ref mut h) => h.increase_count(time, watermark),
+            TcResultEnum::BatchResult(ref mut h) => h.increase_count(time, watermark),
+        }
+    }
+
+    pub fn get_result(&self) -> Vec<usize> {
+        match *self {
+            TcResultEnum::HourResult(ref h) => h.keys_skip_first(),
+            TcResultEnum::BatchResult(ref h) => h.keys_skip_first(),
+        }
+    }
+
+    pub fn get_value(&self, key: usize) -> Option<&TcStat> {
+        match *self {
+            TcResultEnum::HourResult(ref h) => h.get_value(key),
+            TcResultEnum::BatchResult(ref h) => h.get_value(key),
+        }
+    }
+}
+
 pub trait TcResult {
     type Result;
 

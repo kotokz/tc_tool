@@ -36,6 +36,20 @@ pub trait TcLogParser {
     }
 }
 
+pub enum TcParser {
+    Regex(RegexParser),
+    Pattern(PatternParser),
+}
+
+impl TcParser {
+    pub fn match_line<'b>(&self, line: &'b str) -> Result<Option<&'b str>, TcError> {
+        match *self {
+            TcParser::Regex(ref r) => r.match_line(line),
+            TcParser::Pattern(ref r) => r.match_line(line),
+        }
+    }
+}
+
 /// Regex parser to use regex to match line and extract watermark.
 pub struct RegexParser(pub Regex);
 impl RegexParser {
@@ -43,6 +57,18 @@ impl RegexParser {
         match self.0.captures(line) {
             Some(c) => Ok(c.at(1)),
             None => Err(TcError::MisMatch),
+        }
+    }
+}
+
+pub struct PatternParser(pub String);
+
+impl PatternParser {
+    pub fn match_line<'b>(&self, line: &'b str) -> Result<Option<&'b str>, TcError> {
+        if line.contains(&self.0) {
+            Ok(None)
+        } else {
+            Err(TcError::MisMatch)
         }
     }
 }
