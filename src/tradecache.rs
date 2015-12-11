@@ -130,7 +130,7 @@ impl TcTool {
 }
 
 impl TcLogParser for TcTool {
-    fn match_line<'b>(&self, line: &'b str) -> Result<Option<&'b str>, TcError> {
+    fn match_line<'a>(&self, line: &'a str) -> Result<Option<&'a str>, TcError> {
         self.pattern.match_line(line)
     }
 }
