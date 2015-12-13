@@ -171,7 +171,7 @@ impl ::std::ops::Sub for TcTime {
 
 pub enum TcResultEnum {
     HourResult(TcHourResult),
-    BatchResult(TcHourResult),
+    BatchResult(TcBatchResult),
 }
 
 impl TcResultEnum {
@@ -196,10 +196,10 @@ impl TcResultEnum {
         }
     }
 
-    pub fn get_size(&self) -> usize {
+    pub fn wrap_up_file(&mut self) -> usize {
         match *self {
             TcResultEnum::HourResult(ref h) => h.0.len() as usize,
-            TcResultEnum::BatchResult(ref h) => h.0.len() as usize,
+            TcResultEnum::BatchResult(ref mut h) => h.wrap_up_file(),
         }
     }
 }
@@ -230,6 +230,8 @@ pub trait TcResult {
             .and_then(|m| m.parse::<usize>().ok())
             .unwrap_or(0)
     }
+
+    fn wrap_up_file(&mut self) -> usize;
 }
 
 /// TcHourResult is simply just a BTreeMap, using the log hour (usize, for example "2015 09") as 
@@ -284,6 +286,10 @@ impl TcResult for TcHourResult {
 
     fn get_value(&self, key: usize) -> Option<&Self::Result> {
         self.0.get(&key)
+    }
+
+    fn wrap_up_file(&mut self) -> usize {
+        self.0.len() as usize
     }
 }
 
@@ -344,9 +350,7 @@ impl TcResult for TcBatchResult {
     fn get_value(&self, key: usize) -> Option<&Self::Result> {
         self.map.get(&key)
     }
-}
 
-impl TcBatchResult {
     /// wrap_up_file will perform post-file processing for batch result.
     /// like reset current_batch, recalculate temp_count and leftover_count.
     fn wrap_up_file(&mut self) -> usize {

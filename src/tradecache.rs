@@ -5,7 +5,6 @@ use std::fs::File;
 
 use tclogparser::*;
 use tcresult::*;
-use regex::Regex;
 
 pub struct TcTool {
     name: String,
@@ -15,52 +14,46 @@ pub struct TcTool {
 
 impl TcTool {
     pub fn new_ng_publisher() -> TcTool {
-        Self::with_regex_hour("NG_Publisher",
-                              "C:/working/projects/nimproj/logs/ng/publisher/publish.log*",
-                              r"docWriteTime=([^}]+?)}")
+        Self::with_regex("NG_Publisher",
+                         "C:/working/projects/nimproj/logs/ng/publisher/publish.log*",
+                         r"docWriteTime=([^}]+?)}",
+                         None)
     }
     pub fn new_ng_consumer() -> TcTool {
-        Self::with_regex_hour("NG_Consumer",
-                              "C:/working/projects/nimproj/logs/ng/consumer/consumer.log*",
-                              // path: "E:/TradeCache/SophisConsumer-release/logs/prod/consumer.log*".to_owned(),
-                              r"timestamp=(.{28})eve")
+        Self::with_regex("NG_Consumer",
+                         "C:/working/projects/nimproj/logs/ng/consumer/consumer.log*",
+                         // path: "E:/TradeCache/SophisConsumer-release/logs/prod/consumer.log*".to_owned(),
+                         r"timestamp=(.{28})eve",
+                         None)
     }
 
     pub fn new_ng_trimmer() -> TcTool {
-        Self::with_pattern_hour("NG_Trimer",
-                                "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*",
-                                "committed")
+        Self::with_pattern("NG_Trimer",
+                           "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*",
+                           "committed",
+                           None)
     }
 
     pub fn new_v1_publisher() -> TcTool {
-        Self::with_regex_batch("V1_Publisher",
-                               "C:/working/projects/nimproj/logs/v1/publisher/publish.log*",
-                               r"DocWriteTime=([^,]+?),")
+        Self::with_regex("V1_Publisher",
+                         "C:/working/projects/nimproj/logs/v1/publisher/publish.log*",
+                         r"DocWriteTime=([^,]+?),",
+                         None)
     }
 
-    pub fn with_regex_hour(name: &str, path: &str, pattern: &str) -> TcTool {
+    pub fn with_regex(name: &str, path: &str, pattern: &str, batch: Option<&str>) -> TcTool {
         TcTool {
             name: name.to_owned(),
             path: path.to_owned(),
-            pattern: TcParser::Regex(RegexParser(Regex::new(pattern).unwrap()),
-                                     TcResultEnum::HourResult(TcHourResult::new())),
+            pattern: TcParser::new(Some(pattern), None, batch),
         }
     }
 
-    pub fn with_pattern_hour(name: &str, path: &str, pattern: &str) -> TcTool {
+    pub fn with_pattern(name: &str, path: &str, pattern: &str, batch: Option<&str>) -> TcTool {
         TcTool {
             name: name.to_owned(),
             path: path.to_owned(),
-            pattern: TcParser::Pattern(PatternParser(pattern.to_owned()),
-                                       TcResultEnum::HourResult(TcHourResult::new())),
-        }
-    }
-    pub fn with_regex_batch(name: &str, path: &str, pattern: &str) -> TcTool {
-        TcTool {
-            name: name.to_owned(),
-            path: path.to_owned(),
-            pattern: TcParser::Regex(RegexParser(Regex::new(pattern).unwrap()),
-                                     TcResultEnum::BatchResult(TcHourResult::new())),
+            pattern: TcParser::new(None, Some(pattern), batch),
         }
     }
 
