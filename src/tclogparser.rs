@@ -7,23 +7,39 @@ lazy_static! {
 }
 
 pub struct TcParser {
-    matcher: MatcherEnum,
-    result: TcResultEnum,
-    batchMatcher: Option<MatcherEnum>,
+    // matcher: MatcherEnum,
+    matcher: Box<Matcher + Send + 'static>,
+    // result: TcResultEnum,
+    result: Box<TcResult<Result = TcStat> + Send + 'static>, 
+    batch_matcher: Option<RegMatcher>,
 }
 
 
 impl TcParser {
+
     pub fn new(regex: Option<&str>, pattern: Option<&str>, batch: Option<&str>) -> TcParser {
         TcParser {
-            matcher: MatcherEnum::new(regex, pattern).unwrap(),
-            result: match pattern {
-                None => TcResultEnum::HourResult(TcHourResult::new()),
-                Some(_) => TcResultEnum::BatchResult(TcBatchResult::new()),
+            // matcher: MatcherEnum::new(regex, pattern).unwrap(),
+            matcher: match (regex, pattern) {
+                (Some(r), _) => Box::new(RegMatcher::new(r)),
+                (_, Some(p)) => Box::new(PatternMatcher::new(p)),
+                _ => panic!("Please provide at least one matcher"),
             },
-            batchMatcher: MatcherEnum::new(batch, None),
+            // result: match pattern {
+            //     None => TcResultEnum::HourResult(TcHourResult::new()),
+            //     Some(_) => TcResultEnum::BatchResult(TcBatchResult::new()),
+            // },
+            result: match batch {
+                None => Box::new(TcHourResult::new()),
+                Some(_) => Box::new(TcBatchResult::new()),
+            }, 
+            batch_matcher: match batch {
+                None => None,
+                Some(r) => Some(RegMatcher::new(r)),
+            },            
         }
     }
+    
     /// extract_times use match_line to verify the line and extract the watermark from it.
     /// If the input line is the expected line, then also call get_timestamp to extract the
     /// time stamp.We need both timestamp and watermark to update the result set.
@@ -42,10 +58,20 @@ impl TcParser {
     /// it will return None if the line doesn't match any pattern.
     pub fn process_line(&mut self, line: &str) -> Option<usize> {
         match self.extract_times(&line) {
-            (Some(pub_time), Some(watermark)) => self.result.increase_result(pub_time, watermark),
-            (Some(pub_time), None) => self.result.increase_result(pub_time, ""),
-            _ => None,
-        }
+            (Some(pub_time), Some(watermark)) => self.result.increase_count(pub_time, watermark),
+            (Some(pub_time), None) => self.result.increase_count(pub_time, ""),
+            _ => self.check_batch(line),
+        }        
+    }
+    
+    fn check_batch(&mut self, line: &str) -> Option<usize> {
+       if let Some(ref r) = self.batch_matcher {
+           match r.match_line(line) {
+               Ok(r) => {},
+               Err(_) => {},
+           }
+       }
+       None
     }
 
     /// get_timestamp extract the time stamp from the beigining of the matched line.
@@ -64,7 +90,7 @@ impl TcParser {
 
     pub fn print_result(&self, name: &str) {
         // skip the first value, normally the record too old so likely to be incomplete.
-        for (count, key) in self.result.get_result().iter().rev().enumerate() {
+        for (count, key) in self.result.keys_skip_first().iter().rev().enumerate() {
             match self.result.get_value(*key) {
                 Some(val) if count == 0 => {
                     println!("{}-{},{}", name, count, val.to_str(true));
@@ -76,37 +102,13 @@ impl TcParser {
     }
 }
 
-pub enum MatcherEnum {
-    Regex(RegexParser),
-    Pattern(PatternParser),
+trait Matcher {
+    fn match_line<'a>(&self, line: &'a str) -> Result<Option<&'a str>, TcError>;
 }
 
-impl MatcherEnum {
-    /// match_line checks whether the input line is matched by a specific pattern.
-    /// if matched,  return Ok with optional watermak string.
-    /// if not matched, return Err
+struct RegMatcher(pub Regex);
+impl Matcher for RegMatcher {
     fn match_line<'a>(&self, line: &'a str) -> Result<Option<&'a str>, TcError> {
-        match *self {
-            MatcherEnum::Regex(ref r) => r.match_line(line),
-            MatcherEnum::Pattern(ref r) => r.match_line(line),
-        }
-    }
-
-    fn new(regex: Option<&str>, pattern: Option<&str>) -> Option<MatcherEnum> {
-        if let Some(r) = regex {
-            Some(MatcherEnum::Regex(RegexParser(Regex::new(r).unwrap())))
-        } else if let Some(p) = pattern {
-            Some(MatcherEnum::Pattern(PatternParser(p.to_owned())))
-        } else {
-            None
-        }
-
-    }
-}
-/// Regex parser to use regex to match line and extract watermark.
-pub struct RegexParser(pub Regex);
-impl RegexParser {
-    pub fn match_line<'a>(&self, line: &'a str) -> Result<Option<&'a str>, TcError> {
         match self.0.captures(line) {
             Some(c) => Ok(c.at(1)),
             None => Err(TcError::MisMatch),
@@ -114,14 +116,30 @@ impl RegexParser {
     }
 }
 
-pub struct PatternParser(pub String);
+impl RegMatcher {
+    pub fn new(regex: &str) -> RegMatcher {
+        RegMatcher(Regex::new(regex).unwrap())
+    }
+}
 
-impl PatternParser {
-    pub fn match_line<'a>(&self, line: &'a str) -> Result<Option<&'a str>, TcError> {
-        if line.contains(&self.0) {
-            Ok(None)
-        } else {
-            Err(TcError::MisMatch)
+pub struct PatternMatcher(pub String);
+
+impl Matcher for PatternMatcher {
+    fn match_line<'a>(&self, line: &'a str) -> Result<Option<&'a str>, TcError> {
+        // if line.contains(&self.0) {
+        //     Ok(None)
+        // } else {
+        //     Err(TcError::MisMatch)
+        // }
+        match line.find(&self.0) {
+            Some(_) => Ok(None),
+            None => Err(TcError::MisMatch), 
         }
+    }
+}
+
+impl PatternMatcher {
+    pub fn new(pattern: &str) -> PatternMatcher {
+        PatternMatcher(pattern.to_owned())
     }
 }

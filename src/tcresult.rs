@@ -169,41 +169,12 @@ impl ::std::ops::Sub for TcTime {
 //     }
 // }
 
-pub enum TcResultEnum {
-    HourResult(TcHourResult),
-    BatchResult(TcBatchResult),
+fn trim_index(index: &str) -> usize {
+    String::from_utf8(index.bytes().filter(|c| *c >= b'0' && *c <= b'9').collect::<Vec<_>>())
+        .ok()
+        .and_then(|m| m.parse::<usize>().ok())
+        .unwrap_or(0)
 }
-
-impl TcResultEnum {
-    pub fn increase_result(&mut self, time: &str, watermark: &str) -> Option<usize> {
-        match *self {
-            TcResultEnum::HourResult(ref mut h) => h.increase_count(time, watermark),
-            TcResultEnum::BatchResult(ref mut h) => h.increase_count(time, watermark),
-        }
-    }
-
-    pub fn get_result(&self) -> Vec<usize> {
-        match *self {
-            TcResultEnum::HourResult(ref h) => h.keys_skip_first(),
-            TcResultEnum::BatchResult(ref h) => h.keys_skip_first(),
-        }
-    }
-
-    pub fn get_value(&self, key: usize) -> Option<&TcStat> {
-        match *self {
-            TcResultEnum::HourResult(ref h) => h.get_value(key),
-            TcResultEnum::BatchResult(ref h) => h.get_value(key),
-        }
-    }
-
-    pub fn wrap_up_file(&mut self) -> usize {
-        match *self {
-            TcResultEnum::HourResult(ref h) => h.0.len() as usize,
-            TcResultEnum::BatchResult(ref mut h) => h.wrap_up_file(),
-        }
-    }
-}
-
 pub trait TcResult {
     type Result;
 
@@ -215,7 +186,6 @@ pub trait TcResult {
     ///
     /// Returns the current count of TcResult, for early exit purpose
     fn increase_count(&mut self, time: &str, watermark: &str) -> Option<usize>;
-    fn new() -> Self;
 
     /// Returns the keys without the oldest record
     fn keys_skip_first(&self) -> Vec<usize>;
@@ -223,13 +193,6 @@ pub trait TcResult {
     /// Return TcStat value base on key,
     /// Return None if the key not exist.
     fn get_value(&self, key: usize) -> Option<&Self::Result>;
-
-    fn trim_index(index: &str) -> usize {
-        String::from_utf8(index.bytes().filter(|c| *c >= b'0' && *c <= b'9').collect::<Vec<_>>())
-            .ok()
-            .and_then(|m| m.parse::<usize>().ok())
-            .unwrap_or(0)
-    }
 
     fn wrap_up_file(&mut self) -> usize;
 }
@@ -241,21 +204,23 @@ pub trait TcResult {
 /// The record just less than 10 records, so BTreemap performance is very fast.
 pub struct TcHourResult(pub BTreeMap<usize, TcStat>);
 
+impl TcHourResult {
+    pub fn new() -> TcHourResult {
+        TcHourResult(BTreeMap::<usize, TcStat>::new())
+    }
+}
+
 /// Implements TcResult trait for TcHourResult.
 /// This Struct is for hour statistic collection.
 impl TcResult for TcHourResult {
     type Result = TcStat;
 
-    fn new() -> Self {
-        TcHourResult(BTreeMap::<usize, TcStat>::new())
-    }
-
     fn increase_count(&mut self, time: &str, watermark: &str) -> Option<usize> {
         let split: Vec<_> = time.split(':').collect();
         let (hour, min): (usize, usize) = match &split[..] {
             // [TODO]: Better error handling required - 2015-12-07 10:07P
-            [ref hour, ref min, _] => (Self::trim_index(hour), min.parse().unwrap()),
-            [ref hour, ref min] => (Self::trim_index(hour), min.parse().unwrap()),
+            [ref hour, ref min, _] => (trim_index(hour), min.parse().unwrap()),
+            [ref hour, ref min] => (trim_index(hour), min.parse().unwrap()),
             _ => return None,
         };
         {
@@ -319,10 +284,8 @@ pub struct TcBatchResult {
     current_batch: Option<usize>,
 }
 
-impl TcResult for TcBatchResult {
-    type Result = TcStat;
-
-    fn new() -> Self {
+impl TcBatchResult {
+    pub fn new() -> TcBatchResult {
         TcBatchResult {
             map: BTreeMap::<usize, TcStat>::new(),
             temp_count: TcStat::new(),
@@ -330,16 +293,21 @@ impl TcResult for TcBatchResult {
             current_batch: None,
         }
     }
+}
+
+impl TcResult for TcBatchResult {
+    type Result = TcStat;
 
     fn increase_count(&mut self, time: &str, watermark: &str) -> Option<usize> {
         let split: Vec<_> = time.split(':').collect();
         let (hour, min): (usize, usize) = match &split[..] {
             // [TODO]: Better error handling required - 2015-12-07 10:07P
-            [ref hour, ref min, _] => (Self::trim_index(hour), min.parse().unwrap()),
-            [ref hour, ref min] => (Self::trim_index(hour), min.parse().unwrap()),
+            [ref hour, ref min, _] => (trim_index(hour), min.parse().unwrap()),
+            [ref hour, ref min] => (trim_index(hour), min.parse().unwrap()),
             _ => return None,
         };
-        Some(self.map.len() as usize)
+        Some(self.map.len() as usize);
+        unimplemented!()
     }
 
     fn keys_skip_first(&self) -> Vec<usize> {

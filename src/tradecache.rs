@@ -22,7 +22,6 @@ impl TcTool {
     pub fn new_ng_consumer() -> TcTool {
         Self::with_regex("NG_Consumer",
                          "C:/working/projects/nimproj/logs/ng/consumer/consumer.log*",
-                         // path: "E:/TradeCache/SophisConsumer-release/logs/prod/consumer.log*".to_owned(),
                          r"timestamp=(.{28})eve",
                          None)
     }
