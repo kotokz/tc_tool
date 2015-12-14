@@ -187,6 +187,12 @@ impl TcResultEnum {
             TcResultEnum::BatchResult(ref mut h) => h.wrap_up_file(),
         }
     }
+
+    pub fn process_batch(&mut self, index: &str, total: usize) {
+        if let TcResultEnum::BatchResult(ref mut h) = *self {
+            h.process_batch(index, total);
+        }
+    }
 }
 
 pub trait TcResult {
@@ -307,6 +313,13 @@ impl TcBatchResult {
             current_batch: None,
         }
     }
+    fn process_batch(&mut self, index: &str, total: usize) {
+        self.current_batch = Some(trim_index(index));
+        let mut result = self.map
+                             .entry(self.current_batch.unwrap())
+                             .or_insert(TcStat::new());
+        result.total = total;
+    }
 }
 
 impl TcResult for TcBatchResult {
@@ -351,6 +364,8 @@ impl TcResult for TcBatchResult {
         } else {
             self.leftover_count = self.leftover_count.clone() + self.temp_count.clone();
         }
+
+        self.current_batch = None;
         self.map.len() as usize
     }
 }

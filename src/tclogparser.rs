@@ -46,18 +46,19 @@ impl TcParser {
         match self.extract_times(&line) {
             (Some(pub_time), Some(watermark)) => self.result.increase_count(pub_time, watermark),
             (Some(pub_time), None) => self.result.increase_count(pub_time, ""),
-            _ => self.check_batch(line),
+            _ => {
+                self.check_batch(line);
+                None
+            }
         }
     }
 
-    fn check_batch(&mut self, line: &str) -> Option<usize> {
-        if let Some(ref r) = self.batch_matcher {
-            match r.match_line(line) {
-                Ok(r) => {}
-                Err(_) => {}
+    fn check_batch(&mut self, line: &str) {
+        if let Some(ref p) = self.batch_matcher {
+            if let Ok(Some(r)) = p.match_line(line) {
+                self.result.process_batch(r, 0);
             }
         }
-        None
     }
 
     /// get_timestamp extract the time stamp from the beigining of the matched line.
