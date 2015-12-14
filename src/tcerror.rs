@@ -6,6 +6,7 @@ pub enum TcError {
     MisMatch,
     InvalidTimeFormat,
     MissingWaterMark,
+    Invalid,
 }
 
 pub type Result<T> = ::std::result::Result<T, TcError>;
@@ -22,6 +23,7 @@ impl Error for TcError {
             TcError::MisMatch => "MisMatch",
             TcError::InvalidTimeFormat => "Invalid Time Format",
             TcError::MissingWaterMark => "Not Available",
+            TcError::Invalid => "Invalid Pattern",
         }
     }
 

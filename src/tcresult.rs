@@ -147,34 +147,48 @@ impl ::std::ops::Sub for TcTime {
         self.0 - rhs.0
     }
 }
-
-// #[inline]
-// pub fn parse_time(time: &str) -> Result<Tm, String> {
-//     match time.len() {
-//         19 => strptime(time, "%Y-%m-%d %H:%M:%S").map_err(|e| e.to_string()),
-//         28 => strptime(time, "%a %b %d %T %Z %Y").map_err(|e| e.to_string()),
-//         17 => strptime(time, "%Y%m%d %H:%M:%S").map_err(|e| e.to_string()),
-//         _ => Err("Not Available".to_owned()),
-//     }
-// }
-
-// #[inline]
-// pub fn time_to_string(time: &str) -> String {
-//     match parse_time(time)
-//               .as_ref()
-//               .map(|time| time.strftime("%Y-%m-%d %H:%M:%S")) {
-//         Ok(Ok(t)) => t.to_string(),
-//         Ok(Err(e)) => e.to_string(),
-//         Err(e) => e.clone(),
-//     }
-// }
-
 fn trim_index(index: &str) -> usize {
     String::from_utf8(index.bytes().filter(|c| *c >= b'0' && *c <= b'9').collect::<Vec<_>>())
         .ok()
         .and_then(|m| m.parse::<usize>().ok())
         .unwrap_or(0)
 }
+
+pub enum TcResultEnum {
+    HourResult(TcHourResult),
+    BatchResult(TcBatchResult),
+}
+
+impl TcResultEnum {
+    pub fn increase_count(&mut self, time: &str, watermark: &str) -> Option<usize> {
+        match *self {
+            TcResultEnum::HourResult(ref mut h) => h.increase_count(time, watermark),
+            TcResultEnum::BatchResult(ref mut h) => h.increase_count(time, watermark),
+        }
+    }
+
+    pub fn get_result(&self) -> Vec<usize> {
+        match *self {
+            TcResultEnum::HourResult(ref h) => h.keys_skip_first(),
+            TcResultEnum::BatchResult(ref h) => h.keys_skip_first(),
+        }
+    }
+
+    pub fn get_value(&self, key: usize) -> Option<&TcStat> {
+        match *self {
+            TcResultEnum::HourResult(ref h) => h.get_value(key),
+            TcResultEnum::BatchResult(ref h) => h.get_value(key),
+        }
+    }
+
+    pub fn wrap_up_file(&mut self) -> usize {
+        match *self {
+            TcResultEnum::HourResult(ref h) => h.0.len() as usize,
+            TcResultEnum::BatchResult(ref mut h) => h.wrap_up_file(),
+        }
+    }
+}
+
 pub trait TcResult {
     type Result;
 
