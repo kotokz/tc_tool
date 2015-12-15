@@ -211,6 +211,7 @@ impl TcBatchResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tcstat::*;
 
     #[test]
     fn can_increase_hour_count() {
