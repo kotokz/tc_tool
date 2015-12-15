@@ -5,15 +5,15 @@ use std::fs::File;
 
 use tclogparser::*;
 
-pub struct TcTool {
-    name: String,
-    path: String,
+pub struct TcTool<'a> {
+    name: &'a str,
+    path: &'a str,
     pattern: TcParser,
     count: usize,
 }
 
-impl TcTool {
-    pub fn new_ng_publisher(count: usize, prod: bool) -> TcTool {
+impl<'a> TcTool<'a> {
+    pub fn new_ng_publisher(count: usize, prod: bool) -> TcTool<'a> {
         Self::with_regex("NG_Publisher",
                          if prod {
                              "E:/Publisher/sophis2/prod/logs/publish.log*"
@@ -24,7 +24,7 @@ impl TcTool {
                          None,
                          count)
     }
-    pub fn new_ng_consumer(count: usize, prod: bool) -> TcTool {
+    pub fn new_ng_consumer(count: usize, prod: bool) -> TcTool<'a> {
         Self::with_regex("NG_Consumer",
                          if prod {
                              "E:/TradeCache/SophisConsumer-release/logs/prod/consumer.log*"
@@ -36,7 +36,7 @@ impl TcTool {
                          count)
     }
 
-    pub fn new_ng_trimmer(count: usize, prod: bool) -> TcTool {
+    pub fn new_ng_trimmer(count: usize, prod: bool) -> TcTool<'a> {
         Self::with_pattern("NG_Trimmer",
                            if prod {
                                "E:/TradeCache/sophis2/prod/logs/tradecache.log*"
@@ -49,7 +49,7 @@ impl TcTool {
                            count)
     }
 
-    pub fn new_v1_publisher(count: usize, prod: bool) -> TcTool {
+    pub fn new_v1_publisher(count: usize, prod: bool) -> TcTool<'a> {
         Self::with_regex("V1_Publisher",
                          if prod {
                              "E:/Publisher/sophis_aggr/prod/logs/publish.log*"
@@ -61,7 +61,7 @@ impl TcTool {
                          count)
     }
 
-    pub fn new_v1_trimmer(count: usize, prod: bool) -> TcTool {
+    pub fn new_v1_trimmer(count: usize, prod: bool) -> TcTool<'a> {
         Self::with_pattern("V1_Trimmer_Batch",
                            if prod {
                                "E:/Tradecache/sophis_aggr/prod/logs/tradecache.log*"
@@ -73,7 +73,7 @@ impl TcTool {
                            count)
     }
 
-    pub fn new_ng_trimmer_batch(count: usize, prod: bool) -> TcTool {
+    pub fn new_ng_trimmer_batch(count: usize, prod: bool) -> TcTool<'a> {
         Self::with_pattern("NG_Trimmer_Batch",
                            if prod {
                                "E:/TradeCache/sophis2/prod/logs/tradecache.log*"
@@ -85,29 +85,29 @@ impl TcTool {
                            count)
     }
 
-    pub fn with_regex(name: &str,
-                      path: &str,
+    pub fn with_regex(name: &'a str,
+                      path: &'a str,
                       pattern: &str,
                       batch: Option<&str>,
                       count: usize)
-                      -> TcTool {
+                      -> TcTool<'a> {
         TcTool {
-            name: name.to_owned(),
-            path: path.to_owned(),
+            name: name,
+            path: path,
             pattern: TcParser::new(Some(pattern), None, batch),
             count: count,
         }
     }
 
-    pub fn with_pattern(name: &str,
-                        path: &str,
+    pub fn with_pattern(name: &'a str,
+                        path: &'a str,
                         pattern: &str,
                         batch: Option<&str>,
                         count: usize)
-                        -> TcTool {
+                        -> TcTool<'a> {
         TcTool {
-            name: name.to_owned(),
-            path: path.to_owned(),
+            name: name,
+            path: path,
             pattern: TcParser::new(None, Some(pattern), batch),
             count: count,
         }
