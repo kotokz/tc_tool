@@ -1,152 +1,7 @@
 // use std::collections::HashMap;
 use std::collections::BTreeMap;
-use std::fmt;
-use time::*;
-use tcerror::*;
+use tcstat::*;
 
-#[derive(Debug,Clone)]
-pub struct TcStat {
-    /// for hour data, this should be the minutes for the hour
-    pub duration: usize,
-    /// should be the last msg time for this hour
-    pub last_sample_time: String,
-    /// batch size, for hour stat this should be 0
-    pub total: usize,
-    /// how many works done for this hour
-    pub done: usize,
-    /// should be the last msg DB write time for this hour
-    pub last_time_stamp: String,
-}
-
-impl ::std::ops::Add for TcStat {
-    type Output = TcStat;
-
-    fn add(self, rhs: TcStat) -> Self::Output {
-        TcStat {
-            duration: self.duration + rhs.duration,
-            last_sample_time: self.last_sample_time.clone(),
-            total: self.total + self.total,
-            done: self.done,
-            last_time_stamp: self.last_sample_time.clone(),
-        }
-    }
-}
-
-impl TcStat {
-    pub fn new() -> TcStat {
-        TcStat {
-            duration: 0,
-            last_sample_time: "".to_owned(),
-            total: 0,
-            done: 0,
-            last_time_stamp: "".to_owned(),
-        }
-    }
-    /// delay_time calculates the delay from sample time and watermark.
-    /// the display format is "HH:MM:SS"
-    /// shows 0 if missing information, for example missing watermark for pattern match result
-    pub fn delay_time(&self) -> String {
-        let sample_time = self.last_sample_time.parse::<TcTime>();
-        let time_stamp = self.last_time_stamp.parse::<TcTime>();
-
-        match (sample_time, time_stamp) {
-            (Ok(s), Ok(t)) => {
-                let delay = s - t;
-                format!("{:02}:{:02}:{:02}",
-                        delay.num_hours(),
-                        delay.num_minutes() % 60,
-                        delay.num_seconds() % 60)
-            }
-            _ => "0".to_owned(),
-        }
-    }
-    /// to_str is a helper function to convert TcStat into String.
-    /// follow the format "duration, last sample time stamp, total, done, last msg time stamp, eff, delay"
-    /// *** Paramter ***
-    /// delay: bool   whether display delay value. we don't want to show delay for every row.
-    /// otherwise use is very hard to notice the first line, which is normally the latest
-    /// information
-    pub fn to_str(&self, delay: bool) -> String {
-
-        let duration = match self.duration {
-            0 => 1,
-            n => n,
-        };
-
-        // "duration, last sample time stamp, total, done, last msg time stamp, eff, delay"
-        format!("{}, {}, {}, {}, {:.2}, {}",
-                self.duration,
-                self.last_sample_time,
-                self.done,
-                match self.last_time_stamp.parse::<TcTime>() {
-                    Ok(e) => e.to_string(),
-                    Err(e) => e.to_string(),
-                },
-                (self.done as f32 / duration as f32),
-                if delay {
-                    self.delay_time()
-                } else {
-                    "".to_owned()
-                })
-    }
-}
-
-/// TcTime is for date time format conversion and help to calculates delta, for example to calculate
-/// delay value.
-pub struct TcTime(Tm);
-
-impl ::std::str::FromStr for TcTime {
-    type Err = TcError;
-
-    /// 3 kind of watermark timestamp:
-    /// a) "2015-09-08 23:41:28"   same as last sample time  length = 19
-    /// "%Y-%m-%d %H:%M:%S"
-    /// b) "Fri Sep 11 07:59:55 BST 2015"  length = 28
-    ///    "%a %b %d %T %Z %Y"
-    /// c) "20150918 02:55:33"  length = 17
-    ///    "%Y%m%d %H:%M:%S"
-    /// d) ""  length = 0
-    fn from_str(s: &str) -> Result<TcTime> {
-        match s.len() {
-            19 => {
-                strptime(s, "%Y-%m-%d %H:%M:%S")
-                    .map_err(|_| TcError::InvalidTimeFormat)
-                    .map(TcTime)
-            }
-            28 => {
-                strptime(s, "%a %b %d %T %Z %Y")
-                    .map_err(|_| TcError::InvalidTimeFormat)
-                    .map(TcTime)
-            }
-            17 => {
-                strptime(s, "%Y%m%d %H:%M:%S")
-                    .map_err(|_| TcError::InvalidTimeFormat)
-                    .map(TcTime)
-            }
-            0 => Err(TcError::MissingWaterMark),
-            _ => Err(TcError::InvalidTimeFormat),
-        }
-    }
-}
-
-impl fmt::Display for TcTime {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.0.strftime("%Y-%m-%d %H:%M:%S") {
-            Ok(t) => write!(f, "{}", t),
-            Err(e) => write!(f, "{}", e),
-        }
-    }
-}
-
-/// Implemnts Sub trait for calculate TcTime subtraction
-/// TcTime - TcTime = Duration
-impl ::std::ops::Sub for TcTime {
-    type Output = Duration;
-
-    fn sub(self, rhs: TcTime) -> Self::Output {
-        self.0 - rhs.0
-    }
-}
 fn trim_index(index: &str) -> usize {
     String::from_utf8(index.bytes().filter(|c| *c >= b'0' && *c <= b'9').collect::<Vec<_>>())
         .ok()
@@ -163,7 +18,7 @@ impl TcResultEnum {
     pub fn increase_count(&mut self, time: &str, watermark: &str) -> Option<usize> {
         match *self {
             TcResultEnum::HourResult(ref mut h) => h.increase_count(time, watermark),
-            TcResultEnum::BatchResult(ref mut h) => h.increase_count(time, watermark),
+            TcResultEnum::BatchResult(ref mut h) => h.increase_count(time),
         }
     }
 
@@ -188,33 +43,11 @@ impl TcResultEnum {
         }
     }
 
-    pub fn process_batch(&mut self, index: &str, total: usize) {
+    pub fn process_batch(&mut self, index: &str, watermark: &str, total: &str) {
         if let TcResultEnum::BatchResult(ref mut h) = *self {
-            h.process_batch(index, total);
+            h.process_batch(index, watermark, total.parse::<usize>().unwrap_or(0));
         }
     }
-}
-
-pub trait TcResult {
-    type Result;
-
-    /// Increase hour result
-    ///
-    /// ** Parameters **
-    /// time: The timestamp of the log line
-    /// watermark: the timestamp of the trade DB write time.
-    ///
-    /// Returns the current count of TcResult, for early exit purpose
-    fn increase_count(&mut self, time: &str, watermark: &str) -> Option<usize>;
-
-    /// Returns the keys without the oldest record
-    fn keys_skip_first(&self) -> Vec<usize>;
-
-    /// Return TcStat value base on key,
-    /// Return None if the key not exist.
-    fn get_value(&self, key: usize) -> Option<&Self::Result>;
-
-    fn wrap_up_file(&mut self) -> usize;
 }
 
 /// TcHourResult is simply just a BTreeMap, using the log hour (usize, for example "2015 09") as 
@@ -228,14 +61,16 @@ impl TcHourResult {
     pub fn new() -> TcHourResult {
         TcHourResult(BTreeMap::<usize, TcStat>::new())
     }
-}
 
-/// Implements TcResult trait for TcHourResult.
-/// This Struct is for hour statistic collection.
-impl TcResult for TcHourResult {
-    type Result = TcStat;
 
-    fn increase_count(&mut self, time: &str, watermark: &str) -> Option<usize> {
+    /// Increase hour result
+    ///
+    /// ** Parameters **
+    /// time: The timestamp of the log line
+    /// watermark: the timestamp of the trade DB write time.
+    ///
+    /// Returns the current count of TcResult, for early exit purpose
+    pub fn increase_count(&mut self, time: &str, watermark: &str) -> Option<usize> {
         let split: Vec<_> = time.split(':').collect();
         let (hour, min): (usize, usize) = match &split[..] {
             // [TODO]: Better error handling required - 2015-12-07 10:07P
@@ -264,17 +99,16 @@ impl TcResult for TcHourResult {
         Some(self.0.len() as usize)
     }
 
+    /// Returns the keys without the oldest record
     fn keys_skip_first(&self) -> Vec<usize> {
         // self.sorted_keys().into_iter().skip(1).collect()
         self.0.keys().cloned().skip(1).collect()
     }
 
-    fn get_value(&self, key: usize) -> Option<&Self::Result> {
+    /// Return TcStat value base on key,
+    /// Return None if the key not exist.
+    fn get_value(&self, key: usize) -> Option<&TcStat> {
         self.0.get(&key)
-    }
-
-    fn wrap_up_file(&mut self) -> usize {
-        self.0.len() as usize
     }
 }
 
@@ -313,36 +147,36 @@ impl TcBatchResult {
             current_batch: None,
         }
     }
-    fn process_batch(&mut self, index: &str, total: usize) {
+    fn process_batch(&mut self, index: &str, _: &str, total: usize) {
         self.current_batch = Some(trim_index(index));
         let mut result = self.map
                              .entry(self.current_batch.unwrap())
                              .or_insert(TcStat::new());
         result.total = total;
+        result.last_sample_time = index.to_owned();
     }
-}
 
-impl TcResult for TcBatchResult {
-    type Result = TcStat;
-
-    fn increase_count(&mut self, time: &str, watermark: &str) -> Option<usize> {
-        let split: Vec<_> = time.split(':').collect();
-        let (hour, min): (usize, usize) = match &split[..] {
-            // [TODO]: Better error handling required - 2015-12-07 10:07P
-            [ref hour, ref min, _] => (trim_index(hour), min.parse().unwrap()),
-            [ref hour, ref min] => (trim_index(hour), min.parse().unwrap()),
-            _ => return None,
+    pub fn increase_count(&mut self, time: &str) -> Option<usize> {
+        match self.current_batch {
+            Some(c) => {
+                let mut result = self.map.entry(c).or_insert(TcStat::new());
+                result.done += 1;
+                result.last_time_stamp = time.to_owned();
+            }
+            None => {
+                self.temp_count.done += 1;
+                self.temp_count.last_time_stamp = time.to_owned();
+            }
         };
-        Some(self.map.len() as usize);
-        unimplemented!()
+        Some(self.map.len() as usize)
     }
 
     fn keys_skip_first(&self) -> Vec<usize> {
         // self.sorted_keys().into_iter().skip(1).collect()
-        self.map.keys().cloned().skip(1).collect()
+        self.map.keys().cloned().collect()
     }
 
-    fn get_value(&self, key: usize) -> Option<&Self::Result> {
+    fn get_value(&self, key: usize) -> Option<&TcStat> {
         self.map.get(&key)
     }
 
@@ -357,16 +191,20 @@ impl TcResult for TcBatchResult {
                                  .or_insert(TcStat::new());
 
             result.done += self.leftover_count.done;
-            result.duration = self.leftover_count.duration;
-            result.last_sample_time = self.leftover_count.last_sample_time.clone();
-            result.last_time_stamp = self.leftover_count.last_time_stamp.clone();
+            if self.leftover_count.last_time_stamp != "" {
+                result.last_time_stamp = self.leftover_count.last_time_stamp.clone();
+            }
             self.leftover_count = self.temp_count.clone();
         } else {
-            self.leftover_count = self.leftover_count.clone() + self.temp_count.clone();
+            self.leftover_count.done += self.temp_count.done;
+            if self.leftover_count.last_time_stamp == "" {
+                self.leftover_count.last_time_stamp = self.temp_count.last_time_stamp.clone();
+            }
         }
+        self.temp_count = TcStat::new();
 
         self.current_batch = None;
-        self.map.len() as usize
+        self.map.len() + 1 as usize
     }
 }
 

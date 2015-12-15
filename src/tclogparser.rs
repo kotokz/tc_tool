@@ -55,8 +55,17 @@ impl TcParser {
 
     fn check_batch(&mut self, line: &str) {
         if let Some(ref p) = self.batch_matcher {
-            if let Ok(Some(r)) = p.match_line(line) {
-                self.result.process_batch(r, 0);
+
+            match p.match_batch(line) {
+                Ok((Some(r), Some(c))) => {
+                    let t = self.get_timestamp(line).unwrap_or("");
+                    self.result.process_batch(t, r, c)
+                }
+                Ok((Some(c), None)) if c.parse::<usize>().unwrap_or(0) > 0 => {
+                    let t = self.get_timestamp(line).unwrap();
+                    self.result.process_batch(t, "", c)
+                }
+                _ => return,
             }
         }
     }
@@ -80,9 +89,19 @@ impl TcParser {
         for (count, key) in self.result.get_result().iter().rev().enumerate() {
             match self.result.get_value(*key) {
                 Some(val) if count == 0 => {
-                    println!("{}-{},{}", name, count, val.to_str(true));
+                    if self.batch_matcher.is_some() {
+                        println!("{}-{},{}", name, count, val.batch_to_str());
+                    } else {
+                        println!("{}-{},{}", name, count, val.to_str(true));
+                    }
                 }
-                Some(val) => println!("{}-{},{}", name, count, val.to_str(false)),
+                Some(val) => {
+                    if self.batch_matcher.is_some() {
+                        println!("{}-{},{}", name, count, val.batch_to_str());
+                    } else {
+                        println!("{}-{},{}", name, count, val.to_str(false));
+                    }
+                }
                 None => println!("{}-{},{}", name, count, "missing value"),
             };
         }
@@ -103,7 +122,6 @@ impl MatcherEnum {
         }
     }
 
-
     pub fn match_line<'a>(&self, line: &'a str) -> Result<Option<&'a str>, TcError> {
         match *self {
             MatcherEnum::Regex(ref r) => {
@@ -119,6 +137,20 @@ impl MatcherEnum {
                     Err(TcError::MisMatch)
                 }
             }
+        }
+    }
+
+    pub fn match_batch<'a>(&self,
+                           line: &'a str)
+                           -> Result<(Option<&'a str>, Option<&'a str>), TcError> {
+        match *self {
+            MatcherEnum::Regex(ref r) => {
+                match r.captures(line) {
+                    Some(c) => Ok((c.at(1), c.at(2))),
+                    None => Err(TcError::MisMatch),
+                }
+            }
+            _ => Err(TcError::MisMatch),
         }
     }
 }

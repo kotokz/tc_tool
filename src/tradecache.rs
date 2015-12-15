@@ -4,55 +4,112 @@ use std::path::PathBuf;
 use std::fs::File;
 
 use tclogparser::*;
-use tcresult::*;
 
 pub struct TcTool {
     name: String,
     path: String,
     pattern: TcParser,
+    count: usize,
 }
 
 impl TcTool {
-    pub fn new_ng_publisher() -> TcTool {
+    pub fn new_ng_publisher(count: usize, prod: bool) -> TcTool {
         Self::with_regex("NG_Publisher",
-                         "C:/working/projects/nimproj/logs/ng/publisher/publish.log*",
+                         if prod {
+                             "E:/Publisher/sophis2/prod/logs/publish.log*"
+                         } else {
+                             "C:/working/projects/nimproj/logs/ng/publisher/publish.log*"
+                         },
                          r"docWriteTime=([^}]+?)}",
-                         None)
+                         None,
+                         count)
     }
-    pub fn new_ng_consumer() -> TcTool {
+    pub fn new_ng_consumer(count: usize, prod: bool) -> TcTool {
         Self::with_regex("NG_Consumer",
-                         "C:/working/projects/nimproj/logs/ng/consumer/consumer.log*",
+                         if prod {
+                             "E:/TradeCache/SophisConsumer-release/logs/prod/consumer.log*"
+                         } else {
+                             "C:/working/projects/nimproj/logs/ng/consumer/consumer.log*"
+                         },
                          r"timestamp=(.{28})eve",
-                         None)
+                         None,
+                         count)
     }
 
-    pub fn new_ng_trimmer() -> TcTool {
-        Self::with_pattern("NG_Trimer",
-                           "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*",
+    pub fn new_ng_trimmer(count: usize, prod: bool) -> TcTool {
+        Self::with_pattern("NG_Trimmer",
+                           if prod {
+                               "E:/TradeCache/sophis2/prod/logs/tradecache.log*"
+
+                           } else {
+                               "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*"
+                           },
                            "committed",
-                           None)
+                           None,
+                           count)
     }
 
-    pub fn new_v1_publisher() -> TcTool {
+    pub fn new_v1_publisher(count: usize, prod: bool) -> TcTool {
         Self::with_regex("V1_Publisher",
-                         "C:/working/projects/nimproj/logs/v1/publisher/publish.log*",
+                         if prod {
+                             "E:/Publisher/sophis_aggr/prod/logs/publish.log*"
+                         } else {
+                             "C:/working/projects/nimproj/logs/v1/publisher/publish.log*"
+                         },
                          r"DocWriteTime=([^,]+?),",
-                         None)
+                         None,
+                         count)
     }
 
-    pub fn with_regex(name: &str, path: &str, pattern: &str, batch: Option<&str>) -> TcTool {
+    pub fn new_v1_trimmer(count: usize, prod: bool) -> TcTool {
+        Self::with_pattern("V1_Trimmer_Batch",
+                           if prod {
+                               "E:/Tradecache/sophis_aggr/prod/logs/tradecache.log*"
+                           } else {
+                               "C:/working/projects/nimproj/logs/v1/tcaggr/tradecache.log*"
+                           },
+                           "committed",
+                           Some(r"Context contains (\d+)"),
+                           count)
+    }
+
+    pub fn new_ng_trimmer_batch(count: usize, prod: bool) -> TcTool {
+        Self::with_pattern("NG_Trimmer_Batch",
+                           if prod {
+                               "E:/TradeCache/sophis2/prod/logs/tradecache.log*"
+                           } else {
+                               "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*"
+                           },
+                           "committed",
+                           Some(r"Context contains (\d+)"),
+                           count)
+    }
+
+    pub fn with_regex(name: &str,
+                      path: &str,
+                      pattern: &str,
+                      batch: Option<&str>,
+                      count: usize)
+                      -> TcTool {
         TcTool {
             name: name.to_owned(),
             path: path.to_owned(),
             pattern: TcParser::new(Some(pattern), None, batch),
+            count: count,
         }
     }
 
-    pub fn with_pattern(name: &str, path: &str, pattern: &str, batch: Option<&str>) -> TcTool {
+    pub fn with_pattern(name: &str,
+                        path: &str,
+                        pattern: &str,
+                        batch: Option<&str>,
+                        count: usize)
+                        -> TcTool {
         TcTool {
             name: name.to_owned(),
             path: path.to_owned(),
             pattern: TcParser::new(None, Some(pattern), batch),
+            count: count,
         }
     }
 
@@ -81,7 +138,7 @@ impl TcTool {
         paths_new.iter().map(|a| a.0).cloned().collect()
     }
     /// Process files which matched the path pattern. for example: directory/file*
-    pub fn process_directory(&mut self, count: usize) {
+    pub fn process_directory(&mut self) {
         let files: Vec<_> = glob(&self.path).unwrap().filter_map(|r| r.ok()).collect();
         let files = Self::sorted_path(&files);
 
@@ -91,7 +148,7 @@ impl TcTool {
                 self.pattern.process_line(&line);
             }
             // we have enough samples, stop!
-            if self.pattern.wrap_up_file() > count {
+            if self.pattern.wrap_up_file() > self.count {
                 return;
             }
         }
@@ -126,7 +183,7 @@ mod tests {
 
     #[bench]
     fn bench_process_line_v1_publisher(b: &mut Bencher) {
-        let mut tc = TcTool::new_v1_publisher();
+        let mut tc = TcTool::new_v1_publisher(6, false);
 
         let line = "2015-11-08 09:07:54,679 JMS publish : \
                     70330098:400884:10003236:10001030/288641449 msg_len=40208 meta: \
@@ -151,7 +208,7 @@ mod tests {
 
     #[bench]
     fn bench_process_line_ng_consumer(b: &mut Bencher) {
-        let mut tc = TcTool::new_ng_consumer();
+        let mut tc = TcTool::new_ng_consumer(6, false);
 
         let line = "2015-09-11 09:28:49,842 INFO \
                     [org.springframework.jms.listener.DefaultMessageListenerContainer#0-1] \
@@ -170,7 +227,7 @@ mod tests {
 
     #[bench]
     fn bench_process_line_ng_publisher(b: &mut Bencher) {
-        let mut tc = TcTool::new_ng_publisher();
+        let mut tc = TcTool::new_ng_publisher(6, false);
 
         let line = "2015-09-09 02:35:01,024 JMS publish : I|75442050/45035056 msg_len=197258 \
                     meta: {tradeType=PositionEvent, OutOfSequencePublish=false, packageModel=CCF \
@@ -195,7 +252,7 @@ mod tests {
 
     #[bench]
     fn bench_process_line_ng_trimmer(b: &mut Bencher) {
-        let mut tc = TcTool::new_ng_trimmer();
+        let mut tc = TcTool::new_ng_trimmer(6, false);
 
         let line = "2015-09-10 21:06:34,594 INFO  [schedulerFactoryBean_Worker-4] \
                     cachemaint.CacheMaintainerImpl (CacheMaintainerImpl.java:146)     - committed \
@@ -214,8 +271,8 @@ mod tests {
     #[ignore]
     fn bench_tc_v1_process(b: &mut Bencher) {
         b.iter(|| {
-            let mut publisher = TcTool::new_v1_publisher();
-            publisher.process_directory(6);
+            let mut publisher = TcTool::new_v1_publisher(6, false);
+            publisher.process_directory();
         });
     }
 
@@ -223,8 +280,8 @@ mod tests {
     #[ignore]
     fn bench_tc_ng_process(b: &mut Bencher) {
         b.iter(|| {
-            let mut consumer = TcTool::new_ng_consumer();
-            consumer.process_directory(6);
+            let mut consumer = TcTool::new_ng_consumer(6, false);
+            consumer.process_directory();
         });
     }
 
@@ -232,8 +289,8 @@ mod tests {
     #[ignore]
     fn bench_tc_ng_trimmer(b: &mut Bencher) {
         b.iter(|| {
-            let mut trimmer = TcTool::new_ng_trimmer();
-            trimmer.process_directory(6);
+            let mut trimmer = TcTool::new_ng_trimmer(6, false);
+            trimmer.process_directory();
         });
     }
 
@@ -242,15 +299,15 @@ mod tests {
     #[ignore]
     fn bench_process_two(b: &mut Bencher) {
         b.iter(|| {
-            let mut publisher = TcTool::new_v1_publisher();
-            let mut ng_consumer = TcTool::new_ng_consumer();
+            let mut publisher = TcTool::new_v1_publisher(6, false);
+            let mut ng_consumer = TcTool::new_ng_consumer(6, false);
 
             let handle_pub = thread::spawn(move || {
-                publisher.process_directory(6);
+                publisher.process_directory();
             });
 
             let handle_consumer = thread::spawn(move || {
-                ng_consumer.process_directory(6);
+                ng_consumer.process_directory();
             });
 
             handle_pub.join().unwrap();
@@ -262,20 +319,20 @@ mod tests {
     #[ignore]
     fn bench_process_three(b: &mut Bencher) {
         b.iter(|| {
-            let mut ng_pub = TcTool::new_ng_publisher();
-            let mut ng_con = TcTool::new_ng_consumer();
-            let mut v1_pub = TcTool::new_v1_publisher();
+            let mut ng_pub = TcTool::new_ng_publisher(6, false);
+            let mut ng_con = TcTool::new_ng_consumer(6, false);
+            let mut v1_pub = TcTool::new_v1_publisher(6, false);
 
             let h_pub = thread::spawn(move || {
-                ng_pub.process_directory(6);
+                ng_pub.process_directory();
             });
 
             let h_con = thread::spawn(move || {
-                ng_con.process_directory(6);
+                ng_con.process_directory();
             });
 
             let h_v1_pub = thread::spawn(move || {
-                v1_pub.process_directory(6);
+                v1_pub.process_directory();
             });
 
             h_pub.join().unwrap();
