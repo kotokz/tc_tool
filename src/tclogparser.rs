@@ -2,15 +2,12 @@ use regex::Regex;
 use tcresult::*;
 use tcerror::TcError;
 
-lazy_static! {
-    static ref TIMESTAMP_PATTERN: Regex = Regex::new(r"^([^,]+?),").unwrap();
-}
 
 pub struct TcParser {
     matcher: MatcherEnum,
-    result: TcResultEnum,
-    // result: Box<TcResult<Result = TcStat> + Send + 'static>,
+    result: Box<ResultTrait + Send + 'static>,
     batch_matcher: Option<MatcherEnum>,
+    time_regex: Regex,
 }
 
 
@@ -19,23 +16,34 @@ impl TcParser {
         TcParser {
             matcher: MatcherEnum::new(regex, pattern).unwrap(),
             result: match batch {
-                None => TcResultEnum::HourResult(TcHourResult::new()),
-                Some(_) => TcResultEnum::BatchResult(TcBatchResult::new()),
+                None => Box::new(TcHourResult::new()),
+                Some(_) => Box::new(TcBatchResult::new()),
             },
             batch_matcher: MatcherEnum::new(batch, None).ok(),
+            time_regex: Regex::new(r"^([^,]+?),").unwrap(),
         }
     }
 
+    pub fn new_xds(pattern: &str) -> TcParser {
+        TcParser {
+            matcher: MatcherEnum::new(Some(pattern), None).unwrap(),
+            result: Box::new(XdsResult::new()),
+            batch_matcher: None,
+            time_regex: Regex::new(r"^([^,]+?)\.").unwrap(),
+        }
+    }
     /// extract_times use match_line to verify the line and extract the watermark from it.
     /// If the input line is the expected line, then also call get_timestamp to extract the
     /// time stamp.We need both timestamp and watermark to update the result set.
-    pub fn extract_times<'a>(&mut self, line: &'a str) -> (Option<&'a str>, Option<&'a str>) {
+    pub fn extract_info<'a>(&mut self,
+                            line: &'a str)
+                            -> (Option<&'a str>, Option<&'a str>, Option<&'a str>) {
         match self.matcher.match_line(line) {
-            Ok(r) => {
+            Ok((r, c)) => {
                 let t = self.get_timestamp(line);
-                (t, r)
+                (t, r, c)
             }
-            _ => (None, None),
+            _ => (None, None, None),
         }
     }
 
@@ -43,9 +51,12 @@ impl TcParser {
     /// it will extract the information from input and save into result.
     /// it will return None if the line doesn't match any pattern.
     pub fn process_line(&mut self, line: &str) -> Option<usize> {
-        match self.extract_times(&line) {
-            (Some(pub_time), Some(watermark)) => self.result.increase_count(pub_time, watermark),
-            (Some(pub_time), None) => self.result.increase_count(pub_time, ""),
+        match self.extract_info(&line) {
+            (Some(time), Some(count), Some(spent)) => {
+                self.result.increase_count(time, spent, count.parse::<usize>().unwrap_or(1))
+            }
+            (Some(time), Some(watermark), None) => self.result.increase_count(time, watermark, 1),
+            (Some(time), None, None) => self.result.increase_count(time, "", 1),
             _ => {
                 self.check_batch(line);
                 None
@@ -74,7 +85,7 @@ impl TcParser {
     /// The time format is known in this content so hardcoded in the function as default
     /// implementation.
     fn get_timestamp<'a>(&self, line: &'a str) -> Option<&'a str> {
-        match TIMESTAMP_PATTERN.captures(line) {
+        match self.time_regex.captures(line) {
             Some(t) => t.at(1),
             None => None,
         }
@@ -85,26 +96,7 @@ impl TcParser {
     }
 
     pub fn print_result(&self, name: &str) {
-        // skip the first value, normally the record too old so likely to be incomplete.
-        for (count, key) in self.result.get_result().iter().rev().enumerate() {
-            match self.result.get_value(*key) {
-                Some(val) if count == 0 => {
-                    if self.batch_matcher.is_some() {
-                        println!("{}-{},{}", name, count, val.batch_to_str());
-                    } else {
-                        println!("{}-{},{}", name, count, val.to_str(true));
-                    }
-                }
-                Some(val) => {
-                    if self.batch_matcher.is_some() {
-                        println!("{}-{},{}", name, count, val.batch_to_str());
-                    } else {
-                        println!("{}-{},{}", name, count, val.to_str(false));
-                    }
-                }
-                None => println!("{}-{},{}", name, count, "missing value"),
-            };
-        }
+        self.result.print_result(name);
     }
 }
 
@@ -122,17 +114,19 @@ impl MatcherEnum {
         }
     }
 
-    pub fn match_line<'a>(&self, line: &'a str) -> Result<Option<&'a str>, TcError> {
+    pub fn match_line<'a>(&self,
+                          line: &'a str)
+                          -> Result<(Option<&'a str>, Option<&'a str>), TcError> {
         match *self {
             MatcherEnum::Regex(ref r) => {
                 match r.captures(line) {
-                    Some(c) => Ok(c.at(1)),
+                    Some(c) => Ok((c.at(1), c.at(2))),
                     None => Err(TcError::MisMatch),
                 }
             }
             MatcherEnum::Pattern(ref r) => {
                 if line.contains(r) {
-                    Ok(None)
+                    Ok((None, None))
                 } else {
                     Err(TcError::MisMatch)
                 }

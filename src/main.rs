@@ -53,6 +53,7 @@ fn main() {
                  TcTool::new_ng_trimmer(6, prod),
                  TcTool::new_ng_trimmer_batch(1, prod)]
         }
+        "XDS" => vec![TcTool::new_xds(6, prod)],
         // "Summit" => "Summit",
         _ => panic!("TC config can only be V1, NG or Summit"),
     };

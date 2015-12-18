@@ -1,53 +1,20 @@
+
 // use std::collections::HashMap;
 use std::collections::BTreeMap;
 use tcstat::*;
 
-fn trim_index(index: &str) -> usize {
+pub fn trim_index(index: &str) -> usize {
     String::from_utf8(index.bytes().filter(|c| *c >= b'0' && *c <= b'9').collect::<Vec<_>>())
         .ok()
         .and_then(|m| m.parse::<usize>().ok())
         .unwrap_or(0)
 }
 
-pub enum TcResultEnum {
-    HourResult(TcHourResult),
-    BatchResult(TcBatchResult),
-}
-
-impl TcResultEnum {
-    pub fn increase_count(&mut self, time: &str, watermark: &str) -> Option<usize> {
-        match *self {
-            TcResultEnum::HourResult(ref mut h) => h.increase_count(time, watermark),
-            TcResultEnum::BatchResult(ref mut h) => h.increase_count(time),
-        }
-    }
-
-    pub fn get_result(&self) -> Vec<usize> {
-        match *self {
-            TcResultEnum::HourResult(ref h) => h.keys_skip_first(),
-            TcResultEnum::BatchResult(ref h) => h.keys_skip_first(),
-        }
-    }
-
-    pub fn get_value(&self, key: usize) -> Option<&TcStat> {
-        match *self {
-            TcResultEnum::HourResult(ref h) => h.get_value(key),
-            TcResultEnum::BatchResult(ref h) => h.get_value(key),
-        }
-    }
-
-    pub fn wrap_up_file(&mut self) -> usize {
-        match *self {
-            TcResultEnum::HourResult(ref h) => h.0.len() as usize,
-            TcResultEnum::BatchResult(ref mut h) => h.wrap_up_file(),
-        }
-    }
-
-    pub fn process_batch(&mut self, index: &str, watermark: &str, total: &str) {
-        if let TcResultEnum::BatchResult(ref mut h) = *self {
-            h.process_batch(index, watermark, total.parse::<usize>().unwrap_or(0));
-        }
-    }
+pub trait ResultTrait {
+    fn increase_count(&mut self, time: &str, watermark: &str, count: usize) -> Option<usize>;
+    fn wrap_up_file(&mut self) -> usize;
+    fn process_batch(&mut self, _: &str, _: &str, _: &str) {}
+    fn print_result(&self, name: &str);
 }
 
 /// TcHourResult is simply just a BTreeMap, using the log hour (usize, for example "2015 09") as 
@@ -61,8 +28,15 @@ impl TcHourResult {
     pub fn new() -> TcHourResult {
         TcHourResult(BTreeMap::<usize, TcStat>::new())
     }
+    /// Returns the keys without the oldest record
+    fn get_result(&self) -> Vec<usize> {
+        // self.sorted_keys().into_iter().skip(1).collect()
+        self.0.keys().cloned().skip(1).collect()
+    }
+}
 
 
+impl ResultTrait for TcHourResult {
     /// Increase hour result
     ///
     /// ** Parameters **
@@ -70,7 +44,7 @@ impl TcHourResult {
     /// watermark: the timestamp of the trade DB write time.
     ///
     /// Returns the current count of TcResult, for early exit purpose
-    pub fn increase_count(&mut self, time: &str, watermark: &str) -> Option<usize> {
+    fn increase_count(&mut self, time: &str, watermark: &str, _: usize) -> Option<usize> {
         let split: Vec<_> = time.split(':').collect();
         let (hour, min): (usize, usize) = match &split[..] {
             // [TODO]: Better error handling required - 2015-12-07 10:07P
@@ -99,16 +73,24 @@ impl TcHourResult {
         Some(self.0.len() as usize)
     }
 
-    /// Returns the keys without the oldest record
-    fn keys_skip_first(&self) -> Vec<usize> {
-        // self.sorted_keys().into_iter().skip(1).collect()
-        self.0.keys().cloned().skip(1).collect()
+
+    fn wrap_up_file(&mut self) -> usize {
+        self.0.len() as usize
     }
 
-    /// Return TcStat value base on key,
-    /// Return None if the key not exist.
-    fn get_value(&self, key: usize) -> Option<&TcStat> {
-        self.0.get(&key)
+    fn print_result(&self, name: &str) {
+        // skip the first value, normally the record too old so likely to be incomplete.
+        for (count, key) in self.get_result().iter().rev().enumerate() {
+            match self.0.get(&key) {
+                Some(val) if count == 0 => {
+                    println!("{}-{},{}", name, count, val.to_str(true));
+                }
+                Some(val) => {
+                    println!("{}-{},{}", name, count, val.to_str(false));
+                }
+                None => println!("{}-{},{}", name, count, "missing value"),
+            };
+        }
     }
 }
 
@@ -147,7 +129,11 @@ impl TcBatchResult {
             current_batch: None,
         }
     }
-    fn process_batch(&mut self, index: &str, _: &str, total: usize) {
+}
+
+impl ResultTrait for TcBatchResult {
+    fn process_batch(&mut self, index: &str, _: &str, total: &str) {
+        let total = total.parse::<usize>().unwrap_or(0);
         self.current_batch = Some(trim_index(index));
         let mut result = self.map
                              .entry(self.current_batch.unwrap())
@@ -156,7 +142,7 @@ impl TcBatchResult {
         result.last_sample_time = index.to_owned();
     }
 
-    pub fn increase_count(&mut self, time: &str) -> Option<usize> {
+    fn increase_count(&mut self, time: &str, _: &str, _: usize) -> Option<usize> {
         match self.current_batch {
             Some(c) => {
                 let mut result = self.map.entry(c).or_insert(TcStat::new());
@@ -169,15 +155,6 @@ impl TcBatchResult {
             }
         };
         Some(self.map.len() as usize)
-    }
-
-    fn keys_skip_first(&self) -> Vec<usize> {
-        // self.sorted_keys().into_iter().skip(1).collect()
-        self.map.keys().cloned().collect()
-    }
-
-    fn get_value(&self, key: usize) -> Option<&TcStat> {
-        self.map.get(&key)
     }
 
     /// wrap_up_file will perform post-file processing for batch result.
@@ -206,25 +183,112 @@ impl TcBatchResult {
         self.current_batch = None;
         self.map.len() + 1 as usize
     }
+    fn print_result(&self, name: &str) {
+        // skip the first value, normally the record too old so likely to be incomplete.
+        for (count, key) in self.map.keys().rev().enumerate() {
+            match self.map.get(&key) {
+                Some(val) => {
+                    println!("{}-{},{}", name, count, val.batch_to_str());
+                }
+                None => println!("{}-{},{}", name, count, "missing value"),
+            };
+        }
+    }
 }
+
+#[derive(Debug, PartialEq)]
+pub struct XdsStat {
+    pub period: String,
+    pub count: usize,
+    pub spent: usize,
+}
+
+pub struct XdsResult(pub BTreeMap<usize, XdsStat>);
+
+impl XdsResult {
+    pub fn new() -> XdsResult {
+        XdsResult(BTreeMap::<usize, XdsStat>::new())
+    }
+}
+
+impl ResultTrait for XdsResult {
+    fn wrap_up_file(&mut self) -> usize {
+        self.0.len() as usize
+    }
+
+    fn increase_count(&mut self, time: &str, spent: &str, count: usize) -> Option<usize> {
+        let split: Vec<_> = time.split(':').collect();
+        let hour: usize = match &split[..] {
+            // [TODO]: Better error handling required - 2015-12-07 10:07P
+            [ref hour, _, _] => trim_index(hour),
+            [ref hour, _] => trim_index(hour), 
+            _ => return None,
+        };
+        {
+            let mut result = self.0
+                                 .entry(hour)
+                                 .or_insert(XdsStat {
+                                     period: "".into(),
+                                     count: 0,
+                                     spent: 0,
+                                 });
+            result.period = time.to_owned();
+            result.count += count;
+            result.spent += spent.parse::<usize>().unwrap_or(0);
+        }
+        Some(self.0.len() as usize)
+    }
+
+    fn print_result(&self, name: &str) {
+        // skip the first value, normally the record too old so likely to be incomplete.
+        for (count, key) in self.0.keys().rev().enumerate() {
+            match self.0.get(&key) {
+                Some(val) => {
+                    println!("{}-{},{:?}", name, count, val);
+                }
+                None => println!("{}-{},{}", name, count, "missing value"),
+            };
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use tcstat::*;
 
+
+    #[test]
+    fn can_increase_xds_count() {
+        let mut result = XdsResult::new();
+        result.increase_count("2015-11-09 02:01:03", "2092", 100);
+        result.increase_count("2015-11-09 02:01:04", "2092", 10);
+        result.increase_count("2015-11-09 02:01:05", "2092", 100);
+        let c = result.increase_count("2015-11-09 02:06", "2092", 10);
+
+        assert_eq!(*result.0.get(&2015110902).unwrap(),
+                   XdsStat {
+                       period: "2015-11-09 02:06".to_owned(),
+                       count: 220,
+                       spent: 8368,
+                   });
+        assert_eq!(c.unwrap(), result.0.len() as usize);
+
+    }
+
     #[test]
     fn can_increase_hour_count() {
         let mut result = TcHourResult::new();
-        result.increase_count("2015-11-09 02:01:03", "2015-11-09 01:29:32");
-        result.increase_count("2015-11-09 02:02:03", "2015-11-09 01:19:32");
-        result.increase_count("2015-11-09 02:03:03", "2015-11-09 01:09:32");
-        result.increase_count("2015-11-09 01:04", "2015-11-09 01:09:32");
-        result.increase_count("2015-11-09 01:05", "2015-11-09 01:09:32");
-        result.increase_count("nothing here", "test test");
-        result.increase_count("nothing here", "");
-        result.increase_count("", "");
-        let c = result.increase_count("2015-11-09 01:06", "2015-11-09 01:09:32");
+        result.increase_count("2015-11-09 02:01:03", "2015-11-09 01:29:32", 1);
+        result.increase_count("2015-11-09 02:02:03", "2015-11-09 01:19:32", 1);
+        result.increase_count("2015-11-09 02:03:03", "2015-11-09 01:09:32", 1);
+        result.increase_count("2015-11-09 01:04", "2015-11-09 01:09:32", 1);
+        result.increase_count("2015-11-09 01:05", "2015-11-09 01:09:32", 1);
+        result.increase_count("nothing here", "test test", 1);
+        result.increase_count("nothing here", "", 1);
+        result.increase_count("", "", 1);
+        let c = result.increase_count("2015-11-09 01:06", "2015-11-09 01:09:32", 1);
 
         // return value equals to the map length
         assert_eq!(c.unwrap(), result.0.len() as usize);
@@ -247,12 +311,12 @@ mod tests {
     #[test]
     fn can_increase_trimmer_hour_count() {
         let mut result = TcHourResult::new();
-        result.increase_count("2015-11-09 02:01:03", "");
-        result.increase_count("2015-11-09 02:02:03", "");
-        result.increase_count("2015-11-09 02:03:03", "");
-        result.increase_count("2015-11-09 01:04", "");
-        result.increase_count("2015-11-09 01:05", "");
-        let c = result.increase_count("2015-11-09 01:06", "");
+        result.increase_count("2015-11-09 02:01:03", "", 1);
+        result.increase_count("2015-11-09 02:02:03", "", 1);
+        result.increase_count("2015-11-09 02:03:03", "", 1);
+        result.increase_count("2015-11-09 01:04", "", 1);
+        result.increase_count("2015-11-09 01:05", "", 1);
+        let c = result.increase_count("2015-11-09 01:06", "", 1);
 
         // return value equals to the map length
         assert_eq!(c.unwrap(), result.0.len() as usize);
@@ -285,7 +349,7 @@ mod tests {
         assert_eq!(keys, [2015110901, 2015110902]);
 
 
-        let keys_2 = result.keys_skip_first();
+        let keys_2 = result.get_result();
         let ordered_keys_2 = [2015110902];
         // The old key can be removed correctly
         assert_eq!(keys_2, ordered_keys_2);

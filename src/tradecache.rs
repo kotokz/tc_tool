@@ -85,6 +85,16 @@ impl<'a> TcTool<'a> {
                            count)
     }
 
+    pub fn new_xds(count: usize, prod: bool) -> TcTool<'a> {
+        TcTool {
+            name: "XDS_DSLObject",
+            path: "C:/working/projects/rustprj/tc_tool/hub.*log",
+            pattern: TcParser::new_xds(r"batch of (\d+) 'DSLObject/official' documents in (\d+) ms"),
+            count: count,
+        }
+    }
+
+
     pub fn with_regex(name: &'a str,
                       path: &'a str,
                       pattern: &str,
@@ -175,7 +185,7 @@ mod tests {
             ];
 
         for line in lines {
-            let (pub_time, watermark) = tc.pattern.extract_times(&line);
+            let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
             assert_eq!(pub_time, None);
             assert_eq!(watermark, None);
         }
@@ -198,7 +208,7 @@ mod tests {
                     queue://PGBLHDEIS1/GB_DEIS.GB_TRDC.GB_TRDC.TRD_SOPHML?persistence=-1";
 
         b.iter(|| {
-            let (pub_time, watermark) = tc.pattern.extract_times(&line);
+            let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
             assert_eq!(pub_time, Some("2015-11-08 09:07:54"));
             assert_eq!(watermark, Some("20151028 07:17:17"));
 
@@ -217,7 +227,7 @@ mod tests {
                     {id=I|77787473;type=InstrumentGenericUpdate;version=45139252;timestamp=Fri \
                     Sep 11 09:28:49 BST 2015eventId=45139252}";
         b.iter(|| {
-            let (pub_time, watermark) = tc.pattern.extract_times(&line);
+            let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
             assert_eq!(pub_time, Some("2015-09-11 09:28:49"));
             assert_eq!(watermark, Some("Fri Sep 11 09:28:49 BST 2015"));
 
@@ -242,7 +252,7 @@ mod tests {
                     GB_TRDC&persistence=-1&brokerVersion=1&XMSC_WMQ_BROKER_PUBQ_QMGR=PGBLHDEIS1&br\
                     okerCCDurSubQueue=SYSTEM.JMS.D.CC.GB_TRDC";
         b.iter(|| {
-            let (pub_time, watermark) = tc.pattern.extract_times(&line);
+            let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
             assert_eq!(pub_time, Some("2015-09-09 02:35:01"));
             assert_eq!(watermark, Some("2015-09-09 01:35:03"));
 
@@ -258,7 +268,7 @@ mod tests {
                     cachemaint.CacheMaintainerImpl (CacheMaintainerImpl.java:146)     - committed \
                     deletes to disk cache";
         b.iter(|| {
-            let (pub_time, watermark) = tc.pattern.extract_times(&line);
+            let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
             assert_eq!(pub_time, Some("2015-09-10 21:06:34"));
             assert_eq!(watermark, None);
 
