@@ -10,3 +10,6 @@ lazy_static = "*"
 regex = "*"
 time = "*"
 clippy = "*"
+
+[profile.release]
+debug = true

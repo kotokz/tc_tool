@@ -1,4 +1,5 @@
 use glob::glob;
+use regex::Regex;
 use std::io::{BufReader, BufRead};
 use std::path::PathBuf;
 use std::fs::File;
@@ -104,7 +105,8 @@ impl<'a> TcTool<'a> {
         TcTool {
             name: name,
             path: path,
-            pattern: TcParser::new(Some(pattern), None, batch),
+            pattern: TcParser::new(Regex::new(pattern).unwrap(),
+                                   batch.and_then(|m| Regex::new(m).ok())),
             count: count,
         }
     }
@@ -118,7 +120,7 @@ impl<'a> TcTool<'a> {
         TcTool {
             name: name,
             path: path,
-            pattern: TcParser::new(None, Some(pattern), batch),
+            pattern: TcParser::new(pattern, batch.and_then(|m| Regex::new(m).ok())),
             count: count,
         }
     }

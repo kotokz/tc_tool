@@ -12,21 +12,21 @@ pub struct TcParser {
 
 
 impl TcParser {
-    pub fn new(regex: Option<&str>, pattern: Option<&str>, batch: Option<&str>) -> TcParser {
+    pub fn new<T: ToMatcher, P: ToMatcher>(pattern: T, batch: Option<P>) -> TcParser {
         TcParser {
-            matcher: MatcherEnum::new(regex, pattern).unwrap(),
+            matcher: pattern.to_matcher(),
             result: match batch {
                 None => Box::new(TcHourResult::new()),
                 Some(_) => Box::new(TcBatchResult::new()),
             },
-            batch_matcher: MatcherEnum::new(batch, None).ok(),
+            batch_matcher: batch.map(|t| t.to_matcher()),
             time_regex: Regex::new(r"^([^,]+?),").unwrap(),
         }
     }
 
     pub fn new_xds(pattern: &str) -> TcParser {
         TcParser {
-            matcher: MatcherEnum::new(Some(pattern), None).unwrap(),
+            matcher: Regex::new(pattern).unwrap().to_matcher(),
             result: Box::new(XdsResult::new()),
             batch_matcher: None,
             time_regex: Regex::new(r"^([^,]+?)\.").unwrap(),
@@ -100,20 +100,34 @@ impl TcParser {
     }
 }
 
-enum MatcherEnum {
+pub enum MatcherEnum {
     Regex(Regex),
     Pattern(String),
 }
 
-impl MatcherEnum {
-    pub fn new(regex: Option<&str>, pattern: Option<&str>) -> Result<MatcherEnum, TcError> {
-        match (regex, pattern) {
-            (Some(r), _) => Regex::new(r).map(MatcherEnum::Regex).map_err(|_| TcError::Invalid),
-            (_, Some(p)) => Ok(MatcherEnum::Pattern(p.to_owned())),
-            _ => Err(TcError::Invalid),
-        }
-    }
+pub trait ToMatcher {
+    fn to_matcher(self) -> MatcherEnum;
+}
 
+impl ToMatcher for Regex {
+    fn to_matcher(self) -> MatcherEnum {
+        MatcherEnum::Regex(self)
+    }
+}
+
+impl ToMatcher for String {
+    fn to_matcher(self) -> MatcherEnum {
+        MatcherEnum::Pattern(self)
+    }
+}
+
+impl<'a> ToMatcher for &'a str {
+    fn to_matcher(self) -> MatcherEnum {
+        MatcherEnum::Pattern(self.to_owned())
+    }
+}
+
+impl MatcherEnum {
     pub fn match_line<'a>(&self,
                           line: &'a str)
                           -> Result<(Option<&'a str>, Option<&'a str>), TcError> {
