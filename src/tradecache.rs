@@ -15,75 +15,84 @@ pub struct TcTool<'a> {
 
 impl<'a> TcTool<'a> {
     pub fn new_ng_publisher(count: usize, prod: bool) -> TcTool<'a> {
-        Self::with_regex("NG_Publisher",
-                         if prod {
-                             "E:/Publisher/sophis2/prod/logs/publish.log*"
-                         } else {
-                             "C:/working/projects/nimproj/logs/ng/publisher/publish.log*"
-                         },
-                         r"docWriteTime=([^}]+?)}",
-                         None,
-                         count)
+        TcTool {
+            name: "NG_Publisher",
+            path: if prod {
+                "E:/Publisher/sophis2/prod/logs/publish.log*"
+            } else {
+                "C:/working/projects/nimproj/logs/ng/publisher/publish.log*"
+            },
+            pattern: TcParser::new(Regex::new(r"docWriteTime=([^}]+?)}").unwrap()),
+
+            count: count,
+        }
     }
+
     pub fn new_ng_consumer(count: usize, prod: bool) -> TcTool<'a> {
-        Self::with_regex("NG_Consumer",
-                         if prod {
-                             "E:/TradeCache/SophisConsumer-release/logs/prod/consumer.log*"
-                         } else {
-                             "C:/working/projects/nimproj/logs/ng/consumer/consumer.log*"
-                         },
-                         r"timestamp=(.{28})eve",
-                         None,
-                         count)
+        TcTool {
+            name: "NG_Consumer",
+            path: if prod {
+                "E:/TradeCache/SophisConsumer-release/logs/prod/consumer.log*"
+            } else {
+                "C:/working/projects/nimproj/logs/ng/consumer/consumer.log*"
+            },
+            pattern: TcParser::new(Regex::new(r"timestamp=(.{28})eve").unwrap()),
+            count: count,
+        }
     }
 
     pub fn new_ng_trimmer(count: usize, prod: bool) -> TcTool<'a> {
-        Self::with_pattern("NG_Trimmer",
-                           if prod {
-                               "E:/TradeCache/sophis2/prod/logs/tradecache.log*"
+        TcTool {
+            name: "NG_Trimmer",
+            path: if prod {
+                "E:/TradeCache/sophis2/prod/logs/tradecache.log*"
 
-                           } else {
-                               "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*"
-                           },
-                           "committed",
-                           None,
-                           count)
+            } else {
+                "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*"
+            },
+            pattern: TcParser::new("committed"),
+            count: count,
+        }
     }
 
     pub fn new_v1_publisher(count: usize, prod: bool) -> TcTool<'a> {
-        Self::with_regex("V1_Publisher",
-                         if prod {
-                             "E:/Publisher/sophis_aggr/prod/logs/publish.log*"
-                         } else {
-                             "C:/working/projects/nimproj/logs/v1/publisher/publish.log*"
-                         },
-                         r"DocWriteTime=([^,]+?),",
-                         None,
-                         count)
+        TcTool {
+            name: "V1_Publisher",
+            path: if prod {
+                "E:/Publisher/sophis_aggr/prod/logs/publish.log*"
+            } else {
+                "C:/working/projects/nimproj/logs/v1/publisher/publish.log*"
+            },
+            pattern: TcParser::new(Regex::new(r"DocWriteTime=([^,]+?),").unwrap()),
+
+            count: count,
+        }
     }
 
     pub fn new_v1_trimmer(count: usize, prod: bool) -> TcTool<'a> {
-        Self::with_pattern("V1_Trimmer_Batch",
-                           if prod {
-                               "E:/Tradecache/sophis_aggr/prod/logs/tradecache.log*"
-                           } else {
-                               "C:/working/projects/nimproj/logs/v1/tcaggr/tradecache.log*"
-                           },
-                           "committed",
-                           Some(r"Context contains (\d+)"),
-                           count)
+        TcTool {
+            name: "V1_Trimmer_Batch",
+            path: if prod {
+                "E:/Tradecache/sophis_aggr/prod/logs/tradecache.log*"
+            } else {
+                "C:/working/projects/nimproj/logs/v1/tcaggr/tradecache.log*"
+            },
+            pattern: TcParser::new_batch("committed", Regex::new(r"Context contains (\d+)").ok()),
+            count: count,
+        }
     }
 
     pub fn new_ng_trimmer_batch(count: usize, prod: bool) -> TcTool<'a> {
-        Self::with_pattern("NG_Trimmer_Batch",
-                           if prod {
-                               "E:/TradeCache/sophis2/prod/logs/tradecache.log*"
-                           } else {
-                               "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*"
-                           },
-                           "committed",
-                           Some(r"Context contains (\d+)"),
-                           count)
+        TcTool {
+            name: "NG_Trimmer_Batch",
+            path: if prod {
+                "E:/TradeCache/sophis2/prod/logs/tradecache.log*"
+            } else {
+                "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*"
+            },
+            pattern: TcParser::new_batch("committed", Regex::new(r"Context contains (\d+)").ok()),
+            count: count,
+        }
     }
 
     pub fn new_xds(count: usize, prod: bool) -> TcTool<'a> {
@@ -91,36 +100,6 @@ impl<'a> TcTool<'a> {
             name: "XDS_DSLObject",
             path: "C:/working/projects/rustprj/tc_tool/hub.*log",
             pattern: TcParser::new_xds(r"batch of (\d+) 'DSLObject/official' documents in (\d+) ms"),
-            count: count,
-        }
-    }
-
-
-    pub fn with_regex(name: &'a str,
-                      path: &'a str,
-                      pattern: &str,
-                      batch: Option<&str>,
-                      count: usize)
-                      -> TcTool<'a> {
-        TcTool {
-            name: name,
-            path: path,
-            pattern: TcParser::new(Regex::new(pattern).unwrap(),
-                                   batch.and_then(|m| Regex::new(m).ok())),
-            count: count,
-        }
-    }
-
-    pub fn with_pattern(name: &'a str,
-                        path: &'a str,
-                        pattern: &str,
-                        batch: Option<&str>,
-                        count: usize)
-                        -> TcTool<'a> {
-        TcTool {
-            name: name,
-            path: path,
-            pattern: TcParser::new(pattern, batch.and_then(|m| Regex::new(m).ok())),
             count: count,
         }
     }

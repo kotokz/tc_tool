@@ -12,7 +12,16 @@ pub struct TcParser {
 
 
 impl TcParser {
-    pub fn new<T: ToMatcher, P: ToMatcher>(pattern: T, batch: Option<P>) -> TcParser {
+    pub fn new<T: ToMatcher>(pattern: T) -> TcParser {
+        TcParser {
+            matcher: pattern.to_matcher(),
+            result: Box::new(TcHourResult::new()),
+            batch_matcher: None,
+            time_regex: Regex::new(r"^([^,]+?),").unwrap(),
+        }
+    }
+
+    pub fn new_batch<T: ToMatcher, P: ToMatcher>(pattern: T, batch: Option<P>) -> TcParser {
         TcParser {
             matcher: pattern.to_matcher(),
             result: match batch {
