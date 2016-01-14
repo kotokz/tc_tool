@@ -9,7 +9,7 @@ use tclogparser::*;
 pub struct TcTool<'a> {
     name: &'a str,
     path: &'a str,
-    pattern: TcParser,
+    pattern: TcParser<'a>,
     count: usize,
 }
 

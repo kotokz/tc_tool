@@ -171,7 +171,8 @@ impl ResultTrait for TcBatchResult {
             if self.leftover_count.last_time_stamp != "" {
                 result.last_time_stamp = self.leftover_count.last_time_stamp.clone();
             }
-            self.leftover_count = self.temp_count.clone();
+            //self.leftover_count = self.temp_count.clone();
+            ::std::mem::swap(&mut self.leftover_count, &mut self.temp_count);
         } else {
             self.leftover_count.done += self.temp_count.done;
             if self.leftover_count.last_time_stamp == "" {

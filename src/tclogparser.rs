@@ -3,16 +3,16 @@ use tcresult::*;
 use tcerror::TcError;
 
 
-pub struct TcParser {
+pub struct TcParser<'tc> {
     matcher: MatcherEnum,
-    result: Box<ResultTrait + Send + 'static>,
+    result: Box<ResultTrait + Send + 'tc>,
     batch_matcher: Option<MatcherEnum>,
     time_regex: Regex,
 }
 
 
-impl TcParser {
-    pub fn new<T: ToMatcher>(pattern: T) -> TcParser {
+impl<'tc> TcParser<'tc> {
+    pub fn new<T: ToMatcher>(pattern: T) -> TcParser<'tc> {
         TcParser {
             matcher: pattern.to_matcher(),
             result: Box::new(TcHourResult::new()),
@@ -21,7 +21,7 @@ impl TcParser {
         }
     }
 
-    pub fn new_batch<T: ToMatcher, P: ToMatcher>(pattern: T, batch: Option<P>) -> TcParser {
+    pub fn new_batch<T: ToMatcher, P: ToMatcher>(pattern: T, batch: Option<P>) -> TcParser<'tc> {
         TcParser {
             matcher: pattern.to_matcher(),
             result: match batch {
@@ -33,7 +33,7 @@ impl TcParser {
         }
     }
 
-    pub fn new_xds(pattern: &str) -> TcParser {
+    pub fn new_xds(pattern: &str) -> TcParser<'tc> {
         TcParser {
             matcher: Regex::new(pattern).unwrap().to_matcher(),
             result: Box::new(XdsResult::new()),
