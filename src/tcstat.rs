@@ -160,3 +160,25 @@ impl ::std::ops::Sub for TcTime {
         self.0 - rhs.0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn can_parse_to_tctime() {
+        let t = "2015-09-08 23:41:28".parse::<TcTime>().unwrap();
+        assert_eq!(t.to_string(), "2015-09-08 23:41:28");
+
+        let t = "Fri Sep 11 07:59:55 BST 2015".parse::<TcTime>().unwrap();
+        assert_eq!(t.to_string(), "2015-09-11 07:59:55");
+
+        let t = "20150918 02:55:33".parse::<TcTime>().unwrap();
+        assert_eq!(t.to_string(), "2015-09-18 02:55:33");
+
+        match "".parse::<TcTime>() {
+            Ok(_) => panic!("Can not be ok"),
+            Err(e) => assert_eq!(e.to_string(), "Not Available"),
+        }
+    }
+}
