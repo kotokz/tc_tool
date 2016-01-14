@@ -154,7 +154,7 @@ impl ResultTrait for TcBatchResult {
                 self.temp_count.last_time_stamp = time.to_owned();
             }
         };
-        Some(self.map.len() as usize)
+        Some(self.map.len())
     }
 
     /// wrap_up_file will perform post-file processing for batch result.
@@ -182,7 +182,7 @@ impl ResultTrait for TcBatchResult {
         self.temp_count = TcStat::new();
 
         self.current_batch = None;
-        self.map.len() + 1 as usize
+        self.map.len() + 1
     }
     fn print_result(&self, name: &str) {
         // skip the first value, normally the record too old so likely to be incomplete.
