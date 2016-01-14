@@ -5,14 +5,14 @@ use tcerror::*;
 #[derive(Debug,Clone)]
 pub struct TcStat {
     /// for hour data, this should be the minutes for the hour
-    pub duration: usize,
+    pub duration: u32,
     /// for hour stat, should be the last msg time for this hour
     /// for batch stat, should be the batch start time
     pub last_sample_time: String,
     /// batch size, for hour stat this should be 0
-    pub total: usize,
+    pub total: u32,
     /// how many works done for this hour
-    pub done: usize,
+    pub done: u32,
     /// should be the last msg DB write time for this hour
     pub last_time_stamp: String,
 }

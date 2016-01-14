@@ -46,7 +46,7 @@ impl ResultTrait for TcHourResult {
     /// Returns the current count of TcResult, for early exit purpose
     fn increase_count(&mut self, time: &str, watermark: &str, _: usize) -> Option<usize> {
         let split: Vec<_> = time.split(':').collect();
-        let (hour, min): (usize, usize) = match &split[..] {
+        let (hour, min): (usize, u32) = match &split[..] {
             // [TODO]: Better error handling required - 2015-12-07 10:07P
             [ref hour, ref min, _] => (trim_index(hour), min.parse().unwrap()),
             [ref hour, ref min] => (trim_index(hour), min.parse().unwrap()),
@@ -133,7 +133,7 @@ impl TcBatchResult {
 
 impl ResultTrait for TcBatchResult {
     fn process_batch(&mut self, index: &str, _: &str, total: &str) {
-        let total = total.parse::<usize>().unwrap_or(0);
+        let total = total.parse::<u32>().unwrap_or(0);
         self.current_batch = Some(trim_index(index));
         let mut result = self.map
                              .entry(self.current_batch.unwrap())
@@ -171,7 +171,7 @@ impl ResultTrait for TcBatchResult {
             if self.leftover_count.last_time_stamp != "" {
                 result.last_time_stamp = self.leftover_count.last_time_stamp.clone();
             }
-            //self.leftover_count = self.temp_count.clone();
+            // self.leftover_count = self.temp_count.clone();
             ::std::mem::swap(&mut self.leftover_count, &mut self.temp_count);
         } else {
             self.leftover_count.done += self.temp_count.done;

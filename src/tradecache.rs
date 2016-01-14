@@ -95,7 +95,7 @@ impl<'a> TcTool<'a> {
         }
     }
 
-    pub fn new_xds(count: usize, prod: bool) -> TcTool<'a> {
+    pub fn new_xds(count: usize, _: bool) -> TcTool<'a> {
         TcTool {
             name: "XDS_DSLObject",
             path: "C:/working/projects/rustprj/tc_tool/hub.*log",
