@@ -71,12 +71,12 @@ impl ResultTrait for TcHourResult {
                 result.last_time_stamp = watermark.to_owned();
             }
         }
-        Some(self.0.len() as usize)
+        Some(self.0.len())
     }
 
 
     fn wrap_up_file(&mut self) -> usize {
-        self.0.len() as usize
+        self.0.len()
     }
 
     fn print_result(&self, name: &str) {
