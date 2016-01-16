@@ -184,7 +184,7 @@ impl ResultTrait for TcBatchResult {
         self.temp_count = TcStat::new();
 
         self.current_batch = None;
-        self.map.len() + 1
+        self.map.len() + 1  // fake the length, batch better break the file loop as early as possible.
     }
     fn print_result(&self, name: &str) {
         // skip the first value, normally the record too old so likely to be incomplete.
@@ -216,7 +216,7 @@ impl XdsResult {
 
 impl ResultTrait for XdsResult {
     fn wrap_up_file(&mut self) -> usize {
-        self.0.len() as usize
+        self.0.len()
     }
 
     fn increase_count(&mut self, time: &str, spent: &str, count: usize) -> Option<usize> {
@@ -239,7 +239,7 @@ impl ResultTrait for XdsResult {
             result.count += count;
             result.spent += spent.parse::<usize>().unwrap_or(0);
         }
-        Some(self.0.len() as usize)
+        Some(self.0.len())
     }
 
     fn print_result(&self, name: &str) {
@@ -274,7 +274,7 @@ mod tests {
                        count: 220,
                        spent: 8368,
                    });
-        assert_eq!(c.unwrap(), result.0.len() as usize);
+        assert_eq!(c.unwrap(), result.0.len());
 
     }
 
@@ -292,7 +292,7 @@ mod tests {
         let c = result.increase_count("2015-11-09 01:06", "2015-11-09 01:09:32", 1);
 
         // return value equals to the map length
-        assert_eq!(c.unwrap(), result.0.len() as usize);
+        assert_eq!(c.unwrap(), result.0.len());
 
         verify_result_set(&result);
 
@@ -320,7 +320,7 @@ mod tests {
         let c = result.increase_count("2015-11-09 01:06", "", 1);
 
         // return value equals to the map length
-        assert_eq!(c.unwrap(), result.0.len() as usize);
+        assert_eq!(c.unwrap(), result.0.len());
 
         verify_result_set(&result);
 
