@@ -1,12 +1,11 @@
-#![feature(slice_patterns, test, plugin)]
+#![feature(slice_patterns, hashmap_hasher, test, plugin)]
 #![plugin(clippy)]
 
 extern crate regex;
 extern crate glob;
 extern crate time;
 extern crate clap;
-#[macro_use]
-extern crate lazy_static;
+extern crate fnv;
 extern crate test;
 
 mod tradecache;

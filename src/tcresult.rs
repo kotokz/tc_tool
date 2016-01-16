@@ -1,7 +1,9 @@
 
-// use std::collections::HashMap;
+use std::collections::HashMap;
+use std::collections::hash_state::DefaultState;
 use std::collections::BTreeMap;
-use tcstat::*;
+use fnv::FnvHasher;
+use tcstat::TcStat;
 
 pub fn trim_index(index: &str) -> usize {
     String::from_utf8(index.bytes().filter(|c| *c >= b'0' && *c <= b'9').collect::<Vec<_>>())
@@ -17,21 +19,20 @@ pub trait ResultTrait {
     fn print_result(&self, name: &str);
 }
 
-/// TcHourResult is simply just a BTreeMap, using the log hour (usize, for example "2015 09") as 
+/// TcHourResult is simply just a HashMap, using the log hour (usize, for example "2015 09") as 
 /// index and TcStat as content.
-/// Chose BTreeMap is for TcStat order. new hour is the largest record in the map. so we can use 
-/// reverse print to print from latest to oldest.
-/// The record just less than 10 records, so BTreemap performance is very fast.
-pub struct TcHourResult(pub BTreeMap<usize, TcStat>);
+pub struct TcHourResult(pub HashMap<usize, TcStat, DefaultState<FnvHasher>>);
 
 impl TcHourResult {
     pub fn new() -> TcHourResult {
-        TcHourResult(BTreeMap::<usize, TcStat>::new())
+        TcHourResult(Default::default())
     }
     /// Returns the keys without the oldest record
     fn get_result(&self) -> Vec<usize> {
-        // self.sorted_keys().into_iter().skip(1).collect()
-        self.0.keys().cloned().skip(1).collect()
+        // self.0.keys().cloned().skip(1).collect()
+        let mut keys: Vec<_> = self.0.keys().cloned().collect();
+        keys.sort();
+        keys.iter().skip(1).cloned().collect()
     }
 }
 
@@ -99,17 +100,11 @@ pub struct TcBatchResult {
     /// usize is the batch start time, is only for batch order
     map: BTreeMap<usize, TcStat>,
 
-    /// temp_count should be always zero when start processing a new file. Untill we meet a batch
-    /// indicator, the count should be used in 'increase_count' method. Once we meet a batch
-    /// indicator, we should switch to use the batch stat in map. temp_count should be
-    /// remained unchange untill the file finished process. then we should either add it into
-    /// leftover_count (if we don't have batch indicator line in this file) or replace left_over
-    /// count with temp_count value (the left over count should be added into the last batch of this file)
+    /// temp_count should be always zero when start processing a new file. 
     temp_count: TcStat,
 
     /// leftover_count means the counts which cannot be recognized as which batch after processed a
-    /// file. if the next file has batch, this number should be added into the last batch of the
-    /// next file.
+    /// file.
     leftover_count: TcStat,
 
     /// current_batch is the current batch index. We need to keep this for quick reference.
@@ -342,10 +337,10 @@ mod tests {
             assert_eq!(3, val.done);
         }
 
-        let keys: Vec<_> = result.0.keys().into_iter().cloned().collect();
+        //let keys: Vec<_> = result.0.keys().into_iter().cloned().collect();
 
         // keys are in order
-        assert_eq!(keys, [2015110901, 2015110902]);
+        // assert_eq!(keys, [2015110901, 2015110902]);
 
 
         let keys_2 = result.get_result();
