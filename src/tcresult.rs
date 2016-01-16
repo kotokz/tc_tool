@@ -98,7 +98,7 @@ impl ResultTrait for TcHourResult {
 pub struct TcBatchResult {
     /// BTreeMap for the batch, reuse TcStat to hold the statistic for each batch
     /// usize is the batch start time, is only for batch order
-    map: BTreeMap<usize, TcStat>,
+    map: HashMap<usize, TcStat, DefaultState<FnvHasher>>,
 
     /// temp_count should be always zero when start processing a new file. 
     temp_count: TcStat,
@@ -118,11 +118,18 @@ pub struct TcBatchResult {
 impl TcBatchResult {
     pub fn new() -> TcBatchResult {
         TcBatchResult {
-            map: BTreeMap::<usize, TcStat>::new(),
+            map: Default::default(),
             temp_count: TcStat::new(),
             leftover_count: TcStat::new(),
             current_batch: None,
         }
+    }
+    /// Returns the keys without the oldest record
+    fn get_result(&self) -> Vec<usize> {
+        // self.0.keys().cloned().skip(1).collect()
+        let mut keys: Vec<_> = self.map.keys().cloned().collect();
+        keys.sort();
+        keys.iter().skip(1).cloned().collect()
     }
 }
 
@@ -181,7 +188,7 @@ impl ResultTrait for TcBatchResult {
     }
     fn print_result(&self, name: &str) {
         // skip the first value, normally the record too old so likely to be incomplete.
-        for (count, key) in self.map.keys().rev().enumerate() {
+        for (count, key) in self.get_result().iter().rev().enumerate() {
             match self.map.get(&key) {
                 Some(val) => {
                     println!("{}-{},{}", name, count, val.batch_to_str());
@@ -337,7 +344,7 @@ mod tests {
             assert_eq!(3, val.done);
         }
 
-        //let keys: Vec<_> = result.0.keys().into_iter().cloned().collect();
+        // let keys: Vec<_> = result.0.keys().into_iter().cloned().collect();
 
         // keys are in order
         // assert_eq!(keys, [2015110901, 2015110902]);
