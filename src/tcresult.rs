@@ -129,7 +129,7 @@ impl TcBatchResult {
         // self.0.keys().cloned().skip(1).collect()
         let mut keys: Vec<_> = self.map.keys().cloned().collect();
         keys.sort();
-        keys.iter().skip(1).cloned().collect()
+        keys.iter().cloned().collect()
     }
 }
 
