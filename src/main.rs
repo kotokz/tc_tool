@@ -1,4 +1,4 @@
-#![feature(slice_patterns, hashmap_hasher, test, plugin)]
+#![feature(slice_patterns, test, plugin)]
 #![plugin(clippy)]
 
 extern crate regex;

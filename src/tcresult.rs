@@ -1,6 +1,5 @@
-
 use std::collections::HashMap;
-use std::collections::hash_state::DefaultState;
+use std::hash::BuildHasherDefault;
 use std::collections::BTreeMap;
 use fnv::FnvHasher;
 use tcstat::TcStat;
@@ -22,12 +21,13 @@ pub trait ResultTrait {
 /// TcHourResult is simply just a HashMap, using the log hour (usize, for example "2015 09") as 
 /// index and TcStat as content.
 #[derive(Default)]
-pub struct TcHourResult(pub HashMap<usize, TcStat, DefaultState<FnvHasher>>);
+pub struct TcHourResult(pub HashMap<usize, TcStat, BuildHasherDefault<FnvHasher>>);
 
 impl TcHourResult {
     pub fn new() -> TcHourResult {
         TcHourResult::default()
     }
+
     /// Returns the keys without the oldest record
     fn get_result(&self) -> Vec<usize> {
         // self.0.keys().cloned().skip(1).collect()
@@ -98,9 +98,9 @@ impl ResultTrait for TcHourResult {
 
 #[derive(Default)]
 pub struct TcBatchResult {
-    /// BTreeMap for the batch, reuse TcStat to hold the statistic for each batch
+    /// HashMap for the batch, reuse TcStat to hold the statistic for each batch
     /// usize is the batch start time, is only for batch order
-    map: HashMap<usize, TcStat, DefaultState<FnvHasher>>,
+    map: HashMap<usize, TcStat, BuildHasherDefault<FnvHasher>>,
 
     /// temp_count should be always zero when start processing a new file. 
     temp_count: TcStat,
@@ -109,11 +109,7 @@ pub struct TcBatchResult {
     /// file.
     leftover_count: TcStat,
 
-    /// current_batch is the current batch index. We need to keep this for quick reference.
-    /// When the current_batch is Some, it means we are in the known batch scope, all the counts
-    /// will be go into the batch statistic.
-    /// When the current_batch is None, it means we don't know these counts in which batch scope,
-    /// likely we are in a the begining of a new file, so keep the counts in temp_count.
+    /// current_batch is the current batch index.
     current_batch: Option<usize>,
 }
 
