@@ -21,11 +21,12 @@ pub trait ResultTrait {
 
 /// TcHourResult is simply just a HashMap, using the log hour (usize, for example "2015 09") as 
 /// index and TcStat as content.
+#[derive(Default)]
 pub struct TcHourResult(pub HashMap<usize, TcStat, DefaultState<FnvHasher>>);
 
 impl TcHourResult {
     pub fn new() -> TcHourResult {
-        TcHourResult(Default::default())
+        TcHourResult::default()
     }
     /// Returns the keys without the oldest record
     fn get_result(&self) -> Vec<usize> {
@@ -95,6 +96,7 @@ impl ResultTrait for TcHourResult {
     }
 }
 
+#[derive(Default)]
 pub struct TcBatchResult {
     /// BTreeMap for the batch, reuse TcStat to hold the statistic for each batch
     /// usize is the batch start time, is only for batch order
@@ -117,12 +119,7 @@ pub struct TcBatchResult {
 
 impl TcBatchResult {
     pub fn new() -> TcBatchResult {
-        TcBatchResult {
-            map: Default::default(),
-            temp_count: TcStat::new(),
-            leftover_count: TcStat::new(),
-            current_batch: None,
-        }
+        TcBatchResult::default()
     }
     /// Returns the keys without the oldest record
     fn get_result(&self) -> Vec<usize> {
@@ -199,18 +196,18 @@ impl ResultTrait for TcBatchResult {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default)]
 pub struct XdsStat {
     pub period: String,
     pub count: usize,
     pub spent: usize,
 }
-
+#[derive(Default)]
 pub struct XdsResult(pub BTreeMap<usize, XdsStat>);
 
 impl XdsResult {
     pub fn new() -> XdsResult {
-        XdsResult(BTreeMap::<usize, XdsStat>::new())
+        XdsResult::default()
     }
 }
 

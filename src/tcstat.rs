@@ -2,7 +2,7 @@ use std::fmt;
 use time::*;
 use tcerror::*;
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone, Default)]
 pub struct TcStat {
     /// for hour data, this should be the minutes for the hour
     pub duration: u32,
@@ -19,13 +19,7 @@ pub struct TcStat {
 
 impl TcStat {
     pub fn new() -> TcStat {
-        TcStat {
-            duration: 0,
-            last_sample_time: "".to_owned(),
-            total: 0,
-            done: 0,
-            last_time_stamp: "".to_owned(),
-        }
+        TcStat::default()
     }
     /// delay_time calculates the delay from sample time and watermark.
     /// the display format is "HH:MM:SS"
