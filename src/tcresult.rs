@@ -132,7 +132,9 @@ impl ResultTrait for TcBatchResult {
         self.current_batch = Some(trim_index(index));
         let mut result = self.map
                              .entry(self.current_batch.unwrap())
-                             .or_insert(TcStat::new());
+                             .or_insert_with({
+                                 || TcStat::new()
+                             });
         result.total = total;
         result.last_sample_time = index.to_owned();
     }
@@ -140,7 +142,10 @@ impl ResultTrait for TcBatchResult {
     fn increase_count(&mut self, time: &str, _: &str, _: usize) -> Option<usize> {
         match self.current_batch {
             Some(c) => {
-                let mut result = self.map.entry(c).or_insert(TcStat::new());
+                let mut result = self.map.entry(c)
+                                             .or_insert_with({
+                                 || TcStat::new()
+                             });;
                 result.done += 1;
                 result.last_time_stamp = time.to_owned();
             }
@@ -160,7 +165,9 @@ impl ResultTrait for TcBatchResult {
             // if batch is some, then add the count into batch.
             let mut result = self.map
                                  .entry(batch)
-                                 .or_insert(TcStat::new());
+                                 .or_insert_with({
+                                     || TcStat::new()
+                                 });
 
             result.done += self.leftover_count.done;
             if self.leftover_count.last_time_stamp != "" {
