@@ -142,10 +142,11 @@ impl ResultTrait for TcBatchResult {
     fn increase_count(&mut self, time: &str, _: &str, _: usize) -> Option<usize> {
         match self.current_batch {
             Some(c) => {
-                let mut result = self.map.entry(c)
-                                             .or_insert_with({
-                                 || TcStat::new()
-                             });;
+                let mut result = self.map
+                                     .entry(c)
+                                     .or_insert_with({
+                                         || TcStat::new()
+                                     });;
                 result.done += 1;
                 result.last_time_stamp = time.to_owned();
             }
