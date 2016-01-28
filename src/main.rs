@@ -59,9 +59,9 @@ fn main() {
         "XDS" => vec![TcTool::new_xds(6, prod)],
         "Summit" => {
             vec![TcTool::new_summit_consumer(6, prod),
-            TcTool::new_summit_trimmer(6, prod),
-            TcTool::new_summit_trimmer_batch(2, prod),
-            TcTool::new_summit_publisher(6, prod)]
+                 TcTool::new_summit_trimmer(6, prod),
+                 TcTool::new_summit_trimmer_batch(2, prod),
+                 TcTool::new_summit_publisher(6, prod)]
         }
         _ => panic!("TC config can only be V1, NG or Summit"),
     };

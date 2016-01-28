@@ -150,7 +150,7 @@ impl<'a> TcTool<'a> {
             count: count,
         }
     }
-    
+
     pub fn new_summit_publisher(count: usize, prod: bool) -> TcTool<'a> {
         TcTool {
             name: "Summit_Publisher",
@@ -159,11 +159,11 @@ impl<'a> TcTool<'a> {
             } else {
                 "C:/working/projects/nimproj/logs/summit/pub/publish.log*"
             },
-            pattern: TcParser::new(Regex::new(r"docWriteTime=([^}]+?)}").unwrap()),
+            pattern: TcParser::new(Regex::new(r"docWriteTime=([^,]+?),").unwrap()),
 
             count: count,
         }
-    }    
+    }
 
     pub fn new_xds(count: usize, _: bool) -> TcTool<'a> {
         TcTool {
