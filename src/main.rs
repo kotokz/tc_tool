@@ -45,7 +45,11 @@ fn main() {
               min), Delay");
 
     let monitors: Vec<_> = match matches.value_of("CONFIG").unwrap_or("NG") {
-        "V1" => vec![TcTool::new_v1_trimmer(1, prod), TcTool::new_v1_publisher(6, prod)],
+        "V1" => {
+            vec![TcTool::new_v1_trimmer(1, prod),
+                 TcTool::new_v1_publisher(6, prod),
+                 TcTool::new_v1_tradecache(6, prod)]
+        }
         "NG" => {
             vec![TcTool::new_ng_publisher(6, prod),
                  TcTool::new_ng_consumer(6, prod),
@@ -53,7 +57,12 @@ fn main() {
                  TcTool::new_ng_trimmer_batch(1, prod)]
         }
         "XDS" => vec![TcTool::new_xds(6, prod)],
-        // "Summit" => "Summit",
+        "Summit" => {
+            vec![TcTool::new_summit_consumer(6, prod),
+            TcTool::new_summit_trimmer(6, prod),
+            TcTool::new_summit_trimmer_batch(2, prod),
+            TcTool::new_summit_publisher(6, prod)]
+        }
         _ => panic!("TC config can only be V1, NG or Summit"),
     };
 

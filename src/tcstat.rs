@@ -1,5 +1,5 @@
 use std::fmt;
-use time::*;
+use time::{Duration, strptime, Tm};
 use tcerror::*;
 
 #[derive(Debug,Clone, Default)]
@@ -65,7 +65,7 @@ impl TcStat {
                 if delay {
                     self.delay_time()
                 } else {
-                    "".to_owned()
+                    String::default()
                 })
     }
 
@@ -75,8 +75,8 @@ impl TcStat {
 
         match (sample_time, time_stamp) {
             (Ok(s), Ok(t)) => {
-                let time = (t - s).num_minutes() as usize;
-                (self.done as f32 / time as f32)
+                let time = (t - s).num_seconds() as f32 / 60.0;
+                (self.done as f32 / time)
             }
             _ => 0.0,
         }
@@ -113,6 +113,7 @@ impl ::std::str::FromStr for TcTime {
     /// c) "20150918 02:55:33"  length = 17
     ///    "%Y%m%d %H:%M:%S"
     /// d) ""  length = 0
+    /// e) "04/09/15 22:28:10" length = 17
     fn from_str(s: &str) -> Result<TcTime> {
         match s.len() {
             19 => {
@@ -126,9 +127,19 @@ impl ::std::str::FromStr for TcTime {
                     .map(TcTime)
             }
             17 => {
-                strptime(s, "%Y%m%d %H:%M:%S")
-                    .map_err(|_| TcError::InvalidTimeFormat)
-                    .map(TcTime)
+                if s.contains("/") {
+                    strptime(s, "%d/%m/%y %H:%M:%S")
+                        .map_err(|_| TcError::InvalidTimeFormat)
+                        .map(|mut t| {
+                            t.tm_year += 100;           // default is 19xx, change it to 20xx
+                            let d = Duration::hours(1); // 1 hour timezone difference
+                            TcTime(t - d)
+                        })
+                } else {
+                    strptime(s, "%Y%m%d %H:%M:%S")
+                        .map_err(|_| TcError::InvalidTimeFormat)
+                        .map(TcTime)
+                }
             }
             0 => Err(TcError::MissingWaterMark),
             _ => Err(TcError::InvalidTimeFormat),
