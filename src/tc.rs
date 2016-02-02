@@ -14,13 +14,13 @@ pub struct TcTool<'a> {
 }
 
 impl<'a> TcTool<'a> {
-    pub fn new_ng_publisher(count: usize, prod: bool) -> TcTool<'a> {
+    pub fn new_hour(count: usize, prod: bool) -> TcTool<'a> {
         TcTool {
-            name: "NG_Publisher",
+            name: "Hour",
             path: if prod {
-                "E:/Publisher/sophis2/prod/logs/publish.log*"
+                "xxxx/hour.log*"
             } else {
-                "C:/working/projects/nimproj/logs/ng/publisher/publish.log*"
+                "xxxx/hour.log*"
             },
             pattern: LogParser::new(Regex::new(r"docWriteTime=([^}]+?)}").unwrap()),
 
@@ -28,139 +28,16 @@ impl<'a> TcTool<'a> {
         }
     }
 
-    pub fn new_ng_consumer(count: usize, prod: bool) -> TcTool<'a> {
+
+    pub fn new_batch(count: usize, prod: bool) -> TcTool<'a> {
         TcTool {
-            name: "NG_Consumer",
+            name: "Batch",
             path: if prod {
-                "E:/TradeCache/SophisConsumer-release/logs/prod/consumer.log*"
+                "xxx/prod/logs/batch.log*"
             } else {
-                "C:/working/projects/nimproj/logs/ng/consumer/consumer.log*"
-            },
-            pattern: LogParser::new(Regex::new(r"timestamp=(.{28})eve").unwrap()),
-            count: count,
-        }
-    }
-
-    pub fn new_ng_trimmer(count: usize, prod: bool) -> TcTool<'a> {
-        TcTool {
-            name: "NG_Trimmer",
-            path: if prod {
-                "E:/TradeCache/sophis2/prod/logs/tradecache.log*"
-
-            } else {
-                "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*"
-            },
-            pattern: LogParser::new("committed"),
-            count: count,
-        }
-    }
-
-
-    pub fn new_ng_trimmer_batch(count: usize, prod: bool) -> TcTool<'a> {
-        TcTool {
-            name: "NG_Trimmer_Batch",
-            path: if prod {
-                "E:/TradeCache/sophis2/prod/logs/tradecache.log*"
-            } else {
-                "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*"
+                "xxx/prod/logs/batch.log*"
             },
             pattern: LogParser::new_batch("committed", Regex::new(r"Context contains (\d+)").ok()),
-            count: count,
-        }
-    }
-
-    pub fn new_v1_publisher(count: usize, prod: bool) -> TcTool<'a> {
-        TcTool {
-            name: "V1_Publisher",
-            path: if prod {
-                "E:/Publisher/sophis_aggr/prod/logs/publish.log*"
-            } else {
-                "C:/working/projects/nimproj/logs/v1/publisher/publish.log*"
-            },
-            pattern: LogParser::new(Regex::new(r"DocWriteTime=([^,]+?),").unwrap()),
-
-            count: count,
-        }
-    }
-
-    pub fn new_v1_trimmer(count: usize, prod: bool) -> TcTool<'a> {
-        TcTool {
-            name: "V1_Trimmer_Batch",
-            path: if prod {
-                "E:/Tradecache/sophis_aggr/prod/logs/tradecache.log*"
-            } else {
-                "C:/working/projects/nimproj/logs/v1/tcaggr/tradecache.log*"
-            },
-            pattern: LogParser::new_batch("committed", Regex::new(r"Context contains (\d+)").ok()),
-            count: count,
-        }
-    }
-
-    pub fn new_v1_tradecache(count: usize, prod: bool) -> TcTool<'a> {
-        TcTool {
-            name: "V1_TradeCache_Batch",
-            path: if prod {
-                "E:/Tradecache/sophis_aggr/prod/logs/tradecache.log*"
-            } else {
-                "C:/working/projects/nimproj/logs/v1/tcaggr/tradecache.log*"
-            },
-            pattern: LogParser::new_batch(Regex::new(r"(presisted|Failed to update cache)").unwrap(),
-                                         Regex::new(r"atfer pruning has (\d+)").ok()),
-            count: count,
-        }
-    }
-
-    pub fn new_summit_consumer(count: usize, prod: bool) -> TcTool<'a> {
-        TcTool {
-            name: "Summit_Consumer",
-            path: if prod {
-                "E:/TradeCache/consumer/prod/summit/logs/msg-processing-stats.log*"
-            } else {
-                "C:/working/projects/nimproj/logs/summit/consumer/msg-processing-stats.log*"
-            },
-            pattern: LogParser::new(Regex::new(r"auditDateTime=([^,]+?),").unwrap()),
-            count: count,
-        }
-    }
-
-    pub fn new_summit_trimmer(count: usize, prod: bool) -> TcTool<'a> {
-        TcTool {
-            name: "Summit_Trimmer",
-            path: if prod {
-                "E:/TradeCache/simple-summit/prod/logs/tradecache.log*"
-
-            } else {
-                "C:/working/projects/nimproj/logs/summit/tc/tradecache.log*"
-            },
-            pattern: LogParser::new("committed"),
-            count: count,
-        }
-    }
-
-
-    pub fn new_summit_trimmer_batch(count: usize, prod: bool) -> TcTool<'a> {
-        TcTool {
-            name: "Summit_Trimmer_Batch",
-            path: if prod {
-                "E:/TradeCache/simple-summit/prod/logs/tradecache.log*"
-            } else {
-                "C:/working/projects/nimproj/logs/summit/tc/tradecache.log*"
-            },
-            pattern: LogParser::new_batch("committed", Regex::new(r"Context contains (\d+)").ok()),
-            count: count,
-        }
-    }
-
-    pub fn new_summit_publisher(count: usize, prod: bool) -> TcTool<'a> {
-        TcTool {
-            name: "Summit_Publisher",
-            path: if prod {
-                "E:/Publisher/summit/prod/logs/publish.log*"
-            } else {
-                "C:/working/projects/nimproj/logs/summit/pub/publish.log*"
-            },
-            pattern: LogParser::new(Regex::new(r"docWriteTime=([^,]+?),").unwrap()),
-
             count: count,
         }
     }
