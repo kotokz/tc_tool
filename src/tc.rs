@@ -9,7 +9,7 @@ use logparser::*;
 pub struct TcTool<'a> {
     name: &'a str,
     path: &'a str,
-    pattern: TcParser<'a>,
+    pattern: LogParser<'a>,
     count: usize,
 }
 
@@ -22,7 +22,7 @@ impl<'a> TcTool<'a> {
             } else {
                 "C:/working/projects/nimproj/logs/ng/publisher/publish.log*"
             },
-            pattern: TcParser::new(Regex::new(r"docWriteTime=([^}]+?)}").unwrap()),
+            pattern: LogParser::new(Regex::new(r"docWriteTime=([^}]+?)}").unwrap()),
 
             count: count,
         }
@@ -36,7 +36,7 @@ impl<'a> TcTool<'a> {
             } else {
                 "C:/working/projects/nimproj/logs/ng/consumer/consumer.log*"
             },
-            pattern: TcParser::new(Regex::new(r"timestamp=(.{28})eve").unwrap()),
+            pattern: LogParser::new(Regex::new(r"timestamp=(.{28})eve").unwrap()),
             count: count,
         }
     }
@@ -50,7 +50,7 @@ impl<'a> TcTool<'a> {
             } else {
                 "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*"
             },
-            pattern: TcParser::new("committed"),
+            pattern: LogParser::new("committed"),
             count: count,
         }
     }
@@ -64,7 +64,7 @@ impl<'a> TcTool<'a> {
             } else {
                 "C:/working/projects/nimproj/logs/ng/tc/tradecache.log*"
             },
-            pattern: TcParser::new_batch("committed", Regex::new(r"Context contains (\d+)").ok()),
+            pattern: LogParser::new_batch("committed", Regex::new(r"Context contains (\d+)").ok()),
             count: count,
         }
     }
@@ -77,7 +77,7 @@ impl<'a> TcTool<'a> {
             } else {
                 "C:/working/projects/nimproj/logs/v1/publisher/publish.log*"
             },
-            pattern: TcParser::new(Regex::new(r"DocWriteTime=([^,]+?),").unwrap()),
+            pattern: LogParser::new(Regex::new(r"DocWriteTime=([^,]+?),").unwrap()),
 
             count: count,
         }
@@ -91,7 +91,7 @@ impl<'a> TcTool<'a> {
             } else {
                 "C:/working/projects/nimproj/logs/v1/tcaggr/tradecache.log*"
             },
-            pattern: TcParser::new_batch("committed", Regex::new(r"Context contains (\d+)").ok()),
+            pattern: LogParser::new_batch("committed", Regex::new(r"Context contains (\d+)").ok()),
             count: count,
         }
     }
@@ -104,7 +104,7 @@ impl<'a> TcTool<'a> {
             } else {
                 "C:/working/projects/nimproj/logs/v1/tcaggr/tradecache.log*"
             },
-            pattern: TcParser::new_batch(Regex::new(r"(presisted|Failed to update cache)").unwrap(),
+            pattern: LogParser::new_batch(Regex::new(r"(presisted|Failed to update cache)").unwrap(),
                                          Regex::new(r"atfer pruning has (\d+)").ok()),
             count: count,
         }
@@ -118,7 +118,7 @@ impl<'a> TcTool<'a> {
             } else {
                 "C:/working/projects/nimproj/logs/summit/consumer/msg-processing-stats.log*"
             },
-            pattern: TcParser::new(Regex::new(r"auditDateTime=([^,]+?),").unwrap()),
+            pattern: LogParser::new(Regex::new(r"auditDateTime=([^,]+?),").unwrap()),
             count: count,
         }
     }
@@ -132,7 +132,7 @@ impl<'a> TcTool<'a> {
             } else {
                 "C:/working/projects/nimproj/logs/summit/tc/tradecache.log*"
             },
-            pattern: TcParser::new("committed"),
+            pattern: LogParser::new("committed"),
             count: count,
         }
     }
@@ -146,7 +146,7 @@ impl<'a> TcTool<'a> {
             } else {
                 "C:/working/projects/nimproj/logs/summit/tc/tradecache.log*"
             },
-            pattern: TcParser::new_batch("committed", Regex::new(r"Context contains (\d+)").ok()),
+            pattern: LogParser::new_batch("committed", Regex::new(r"Context contains (\d+)").ok()),
             count: count,
         }
     }
@@ -159,17 +159,8 @@ impl<'a> TcTool<'a> {
             } else {
                 "C:/working/projects/nimproj/logs/summit/pub/publish.log*"
             },
-            pattern: TcParser::new(Regex::new(r"docWriteTime=([^,]+?),").unwrap()),
+            pattern: LogParser::new(Regex::new(r"docWriteTime=([^,]+?),").unwrap()),
 
-            count: count,
-        }
-    }
-
-    pub fn new_xds(count: usize, _: bool) -> TcTool<'a> {
-        TcTool {
-            name: "XDS_DSLObject",
-            path: "C:/working/projects/rustprj/tc_tool/hub.*log",
-            pattern: TcParser::new_xds(r"batch of (\d+) 'DSLObject/official' documents in (\d+) ms"),
             count: count,
         }
     }

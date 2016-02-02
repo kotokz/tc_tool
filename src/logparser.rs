@@ -1,9 +1,9 @@
 use regex::Regex;
 use logresult::*;
-use error::TcError;
+use error::LogError;
 
 
-pub struct TcParser<'tc> {
+pub struct LogParser<'tc> {
     matcher: MatcherEnum,
     result: Box<ResultTrait + Send + 'tc>,
     batch_matcher: Option<MatcherEnum>,
@@ -11,9 +11,9 @@ pub struct TcParser<'tc> {
 }
 
 
-impl<'tc> TcParser<'tc> {
-    pub fn new<T: ToMatcher>(pattern: T) -> TcParser<'tc> {
-        TcParser {
+impl<'tc> LogParser<'tc> {
+    pub fn new<T: ToMatcher>(pattern: T) -> LogParser<'tc> {
+        LogParser {
             matcher: pattern.to_matcher(),
             result: Box::new(HourResult::new()),
             batch_matcher: None,
@@ -21,8 +21,8 @@ impl<'tc> TcParser<'tc> {
         }
     }
 
-    pub fn new_batch<T: ToMatcher, P: ToMatcher>(pattern: T, batch: Option<P>) -> TcParser<'tc> {
-        TcParser {
+    pub fn new_batch<T: ToMatcher, P: ToMatcher>(pattern: T, batch: Option<P>) -> LogParser<'tc> {
+        LogParser {
             matcher: pattern.to_matcher(),
             result: match batch {
                 None => Box::new(HourResult::new()),
@@ -33,14 +33,6 @@ impl<'tc> TcParser<'tc> {
         }
     }
 
-    pub fn new_xds(pattern: &str) -> TcParser<'tc> {
-        TcParser {
-            matcher: Regex::new(pattern).unwrap().to_matcher(),
-            result: Box::new(XdsResult::new()),
-            batch_matcher: None,
-            time_regex: Regex::new(r"^([^,]+?)\.").unwrap(),
-        }
-    }
     /// extract_times use match_line to verify the line and extract the watermark from it.
     /// If the input line is the expected line, then also call get_timestamp to extract the
     /// time stamp.We need both timestamp and watermark to update the result set.
@@ -139,19 +131,19 @@ impl<'a> ToMatcher for &'a str {
 impl MatcherEnum {
     pub fn match_line<'a>(&self,
                           line: &'a str)
-                          -> Result<(Option<&'a str>, Option<&'a str>), TcError> {
+                          -> Result<(Option<&'a str>, Option<&'a str>), LogError> {
         match *self {
             MatcherEnum::Regex(ref r) => {
                 match r.captures(line) {
                     Some(c) => Ok((c.at(1), c.at(2))),
-                    None => Err(TcError::MisMatch),
+                    None => Err(LogError::MisMatch),
                 }
             }
             MatcherEnum::Pattern(ref r) => {
                 if line.contains(r) {
                     Ok((None, None))
                 } else {
-                    Err(TcError::MisMatch)
+                    Err(LogError::MisMatch)
                 }
             }
         }
@@ -159,15 +151,15 @@ impl MatcherEnum {
 
     pub fn match_batch<'a>(&self,
                            line: &'a str)
-                           -> Result<(Option<&'a str>, Option<&'a str>), TcError> {
+                           -> Result<(Option<&'a str>, Option<&'a str>), LogError> {
         match *self {
             MatcherEnum::Regex(ref r) => {
                 match r.captures(line) {
                     Some(c) => Ok((c.at(1), c.at(2))),
-                    None => Err(TcError::MisMatch),
+                    None => Err(LogError::MisMatch),
                 }
             }
-            _ => Err(TcError::MisMatch),
+            _ => Err(LogError::MisMatch),
         }
     }
 }

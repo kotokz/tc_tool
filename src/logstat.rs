@@ -103,7 +103,7 @@ impl Stat {
 pub struct LogTime(Tm);
 
 impl ::std::str::FromStr for LogTime {
-    type Err = TcError;
+    type Err = LogError;
 
     /// 3 kind of watermark timestamp:
     /// a) "2015-09-08 23:41:28"   same as last sample time  length = 19
@@ -118,18 +118,18 @@ impl ::std::str::FromStr for LogTime {
         match s.len() {
             19 => {
                 strptime(s, "%Y-%m-%d %H:%M:%S")
-                    .map_err(|_| TcError::InvalidTimeFormat)
+                    .map_err(|_| LogError::InvalidTimeFormat)
                     .map(LogTime)
             }
             28 => {
                 strptime(s, "%a %b %d %T %Z %Y")
-                    .map_err(|_| TcError::InvalidTimeFormat)
+                    .map_err(|_| LogError::InvalidTimeFormat)
                     .map(LogTime)
             }
             17 => {
                 if s.contains("/") {
                     strptime(s, "%d/%m/%y %H:%M:%S")
-                        .map_err(|_| TcError::InvalidTimeFormat)
+                        .map_err(|_| LogError::InvalidTimeFormat)
                         .map(|mut t| {
                             t.tm_year += 100;           // default is 19xx, change it to 20xx
                             let d = Duration::hours(1); // 1 hour timezone difference
@@ -137,12 +137,12 @@ impl ::std::str::FromStr for LogTime {
                         })
                 } else {
                     strptime(s, "%Y%m%d %H:%M:%S")
-                        .map_err(|_| TcError::InvalidTimeFormat)
+                        .map_err(|_| LogError::InvalidTimeFormat)
                         .map(LogTime)
                 }
             }
-            0 => Err(TcError::MissingWaterMark),
-            _ => Err(TcError::InvalidTimeFormat),
+            0 => Err(LogError::MissingWaterMark),
+            _ => Err(LogError::InvalidTimeFormat),
         }
     }
 }

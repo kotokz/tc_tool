@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
-use std::collections::BTreeMap;
 use fnv::FnvHasher;
 use logstat::Stat;
 
@@ -200,84 +199,10 @@ impl ResultTrait for BatchResult {
     }
 }
 
-#[derive(Debug, PartialEq, Default)]
-pub struct XdsStat {
-    pub period: String,
-    pub count: usize,
-    pub spent: usize,
-}
-#[derive(Default)]
-pub struct XdsResult(pub BTreeMap<usize, XdsStat>);
-
-impl XdsResult {
-    pub fn new() -> XdsResult {
-        XdsResult::default()
-    }
-}
-
-impl ResultTrait for XdsResult {
-    fn wrap_up_file(&mut self) -> usize {
-        self.0.len()
-    }
-
-    fn increase_count(&mut self, time: &str, spent: &str, count: usize) -> Option<usize> {
-        let split: Vec<_> = time.split(':').collect();
-        let hour: usize = match &split[..] {
-            // [TODO]: Better error handling required - 2015-12-07 10:07P
-            [ref hour, _, _] => trim_index(hour),
-            [ref hour, _] => trim_index(hour), 
-            _ => return None,
-        };
-        {
-            let mut result = self.0
-                                 .entry(hour)
-                                 .or_insert(XdsStat {
-                                     period: "".into(),
-                                     count: 0,
-                                     spent: 0,
-                                 });
-            result.period = time.to_owned();
-            result.count += count;
-            result.spent += spent.parse::<usize>().unwrap_or(0);
-        }
-        Some(self.0.len())
-    }
-
-    fn print_result(&self, name: &str) {
-        // skip the first value, normally the record too old so likely to be incomplete.
-        for (count, key) in self.0.keys().rev().enumerate() {
-            match self.0.get(&key) {
-                Some(val) => {
-                    println!("{}-{},{:?}", name, count, val);
-                }
-                None => println!("{}-{},{}", name, count, "missing value"),
-            };
-        }
-    }
-}
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn can_increase_xds_count() {
-        let mut result = XdsResult::new();
-        result.increase_count("2015-11-09 02:01:03", "2092", 100);
-        result.increase_count("2015-11-09 02:01:04", "2092", 10);
-        result.increase_count("2015-11-09 02:01:05", "2092", 100);
-        let c = result.increase_count("2015-11-09 02:06", "2092", 10);
-
-        assert_eq!(*result.0.get(&2015110902).unwrap(),
-                   XdsStat {
-                       period: "2015-11-09 02:06".to_owned(),
-                       count: 220,
-                       spent: 8368,
-                   });
-        assert_eq!(c.unwrap(), result.0.len());
-
-    }
 
     #[test]
     fn can_increase_hour_count() {
