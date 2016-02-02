@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 use std::collections::BTreeMap;
 use fnv::FnvHasher;
-use logstat::TcStat;
+use logstat::Stat;
 
 pub fn trim_index(index: &str) -> usize {
     String::from_utf8(index.bytes().filter(|c| *c >= b'0' && *c <= b'9').collect::<Vec<_>>())
@@ -18,14 +18,14 @@ pub trait ResultTrait {
     fn print_result(&self, name: &str);
 }
 
-/// TcHourResult is simply just a HashMap, using the log hour (usize, for example "2015 09") as 
-/// index and TcStat as content.
+/// HourResult is simply just a HashMap, using the log hour (usize, for example "2015 09") as 
+/// index and Stat as content.
 #[derive(Default)]
-pub struct TcHourResult(pub HashMap<usize, TcStat, BuildHasherDefault<FnvHasher>>);
+pub struct HourResult(pub HashMap<usize, Stat, BuildHasherDefault<FnvHasher>>);
 
-impl TcHourResult {
-    pub fn new() -> TcHourResult {
-        TcHourResult::default()
+impl HourResult {
+    pub fn new() -> HourResult {
+        HourResult::default()
     }
 
     /// Returns the keys without the oldest record
@@ -38,7 +38,7 @@ impl TcHourResult {
 }
 
 
-impl ResultTrait for TcHourResult {
+impl ResultTrait for HourResult {
     /// Increase hour result
     ///
     /// ** Parameters **
@@ -57,7 +57,7 @@ impl ResultTrait for TcHourResult {
         {
             let mut result = self.0
                                  .entry(hour)
-                                 .or_insert(TcStat {
+                                 .or_insert(Stat {
                                      duration: min,
                                      last_sample_time: time.to_owned(),
                                      total: 0,
@@ -97,25 +97,25 @@ impl ResultTrait for TcHourResult {
 }
 
 #[derive(Default)]
-pub struct TcBatchResult {
-    /// HashMap for the batch, reuse TcStat to hold the statistic for each batch
+pub struct BatchResult {
+    /// HashMap for the batch, reuse Stat to hold the statistic for each batch
     /// usize is the batch start time, is only for batch order
-    map: HashMap<usize, TcStat, BuildHasherDefault<FnvHasher>>,
+    map: HashMap<usize, Stat, BuildHasherDefault<FnvHasher>>,
 
     /// temp_count should be always zero when start processing a new file. 
-    temp_count: TcStat,
+    temp_count: Stat,
 
     /// leftover_count means the counts which cannot be recognized as which batch after processed a
     /// file.
-    leftover_count: TcStat,
+    leftover_count: Stat,
 
     /// current_batch is the current batch index.
     current_batch: Option<usize>,
 }
 
-impl TcBatchResult {
-    pub fn new() -> TcBatchResult {
-        TcBatchResult::default()
+impl BatchResult {
+    pub fn new() -> BatchResult {
+        BatchResult::default()
     }
     /// Returns the keys without the oldest record
     fn get_result(&self) -> Vec<usize> {
@@ -126,14 +126,14 @@ impl TcBatchResult {
     }
 }
 
-impl ResultTrait for TcBatchResult {
+impl ResultTrait for BatchResult {
     fn process_batch(&mut self, index: &str, _: &str, total: &str) {
         let total = total.parse::<u32>().unwrap_or(0);
         self.current_batch = Some(trim_index(index));
         let mut result = self.map
                              .entry(self.current_batch.unwrap())
                              .or_insert_with({
-                                 || TcStat::new()
+                                 || Stat::new()
                              });
         result.total = total;
         result.last_sample_time = index.to_owned();
@@ -145,7 +145,7 @@ impl ResultTrait for TcBatchResult {
                 let mut result = self.map
                                      .entry(c)
                                      .or_insert_with({
-                                         || TcStat::new()
+                                         || Stat::new()
                                      });;
                 result.done += 1;
                 result.last_time_stamp = time.to_owned();
@@ -167,7 +167,7 @@ impl ResultTrait for TcBatchResult {
             let mut result = self.map
                                  .entry(batch)
                                  .or_insert_with({
-                                     || TcStat::new()
+                                     || Stat::new()
                                  });
 
             result.done += self.leftover_count.done;
@@ -182,7 +182,7 @@ impl ResultTrait for TcBatchResult {
                 self.leftover_count.last_time_stamp = self.temp_count.last_time_stamp.clone();
             }
         }
-        self.temp_count = TcStat::new();
+        self.temp_count = Stat::new();
 
         self.current_batch = None;
         self.map.len() + 1  // fake the length, batch better break the file loop as early as possible.
@@ -281,7 +281,7 @@ mod tests {
 
     #[test]
     fn can_increase_hour_count() {
-        let mut result = TcHourResult::new();
+        let mut result = HourResult::new();
         result.increase_count("2015-11-09 02:01:03", "2015-11-09 01:29:32", 1);
         result.increase_count("2015-11-09 02:02:03", "2015-11-09 01:19:32", 1);
         result.increase_count("2015-11-09 02:03:03", "2015-11-09 01:09:32", 1);
@@ -312,7 +312,7 @@ mod tests {
 
     #[test]
     fn can_increase_trimmer_hour_count() {
-        let mut result = TcHourResult::new();
+        let mut result = HourResult::new();
         result.increase_count("2015-11-09 02:01:03", "", 1);
         result.increase_count("2015-11-09 02:02:03", "", 1);
         result.increase_count("2015-11-09 02:03:03", "", 1);
@@ -338,7 +338,7 @@ mod tests {
                    "2015-11-09 01:06, 0, 3, Not Available, 0.50, 0");
     }
 
-    fn verify_result_set(result: &TcHourResult) {
+    fn verify_result_set(result: &HourResult) {
 
         for (_, val) in &result.0 {
             // logs can be porperly categoried in map

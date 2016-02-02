@@ -15,7 +15,7 @@ impl<'tc> TcParser<'tc> {
     pub fn new<T: ToMatcher>(pattern: T) -> TcParser<'tc> {
         TcParser {
             matcher: pattern.to_matcher(),
-            result: Box::new(TcHourResult::new()),
+            result: Box::new(HourResult::new()),
             batch_matcher: None,
             time_regex: Regex::new(r"^([^,]+?),").unwrap(),
         }
@@ -25,8 +25,8 @@ impl<'tc> TcParser<'tc> {
         TcParser {
             matcher: pattern.to_matcher(),
             result: match batch {
-                None => Box::new(TcHourResult::new()),
-                Some(_) => Box::new(TcBatchResult::new()),
+                None => Box::new(HourResult::new()),
+                Some(_) => Box::new(BatchResult::new()),
             },
             batch_matcher: batch.map(|t| t.to_matcher()),
             time_regex: Regex::new(r"^([^,]+?),").unwrap(),

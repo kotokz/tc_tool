@@ -3,7 +3,7 @@ use time::{Duration, strptime, Tm};
 use error::*;
 
 #[derive(Debug,Clone, Default)]
-pub struct TcStat {
+pub struct Stat {
     /// for hour data, this should be the minutes for the hour
     pub duration: u32,
     /// for hour stat, should be the last msg time for this hour
@@ -17,16 +17,16 @@ pub struct TcStat {
     pub last_time_stamp: String,
 }
 
-impl TcStat {
-    pub fn new() -> TcStat {
-        TcStat::default()
+impl Stat {
+    pub fn new() -> Stat {
+        Stat::default()
     }
     /// delay_time calculates the delay from sample time and watermark.
     /// the display format is "HH:MM:SS"
     /// shows 0 if missing information, for example missing watermark for pattern match result
     pub fn delay_time(&self) -> String {
-        let sample_time = self.last_sample_time.parse::<TcTime>();
-        let time_stamp = self.last_time_stamp.parse::<TcTime>();
+        let sample_time = self.last_sample_time.parse::<LogTime>();
+        let time_stamp = self.last_time_stamp.parse::<LogTime>();
 
         match (sample_time, time_stamp) {
             (Ok(s), Ok(t)) => {
@@ -39,7 +39,7 @@ impl TcStat {
             _ => "0".to_owned(),
         }
     }
-    /// to_str is a helper function to convert TcStat into String.
+    /// to_str is a helper function to convert Stat into String.
     /// follow the format "duration, last sample time stamp, total, done, last msg time stamp, eff, delay"
     /// *** Paramter ***
     /// delay: bool   whether display delay value. we don't want to show delay for every row.
@@ -57,7 +57,7 @@ impl TcStat {
                 self.last_sample_time,
                 self.total,
                 self.done,
-                match self.last_time_stamp.parse::<TcTime>() {
+                match self.last_time_stamp.parse::<LogTime>() {
                     Ok(e) => e.to_string(),
                     Err(e) => e.to_string(),
                 },
@@ -70,8 +70,8 @@ impl TcStat {
     }
 
     fn cal_batch_eff(&self) -> f32 {
-        let sample_time = self.last_sample_time.parse::<TcTime>();
-        let time_stamp = self.last_time_stamp.parse::<TcTime>();
+        let sample_time = self.last_sample_time.parse::<LogTime>();
+        let time_stamp = self.last_time_stamp.parse::<LogTime>();
 
         match (sample_time, time_stamp) {
             (Ok(s), Ok(t)) => {
@@ -89,7 +89,7 @@ impl TcStat {
                 self.last_sample_time,
                 self.total,
                 self.done,
-                match self.last_time_stamp.parse::<TcTime>() {
+                match self.last_time_stamp.parse::<LogTime>() {
                     Ok(e) => e.to_string(),
                     Err(e) => e.to_string(),
                 },
@@ -98,11 +98,11 @@ impl TcStat {
     }
 }
 
-/// TcTime is for date time format conversion and help to calculates delta, for example to calculate
+/// LogTime is for date time format conversion and help to calculates delta, for example to calculate
 /// delay value.
-pub struct TcTime(Tm);
+pub struct LogTime(Tm);
 
-impl ::std::str::FromStr for TcTime {
+impl ::std::str::FromStr for LogTime {
     type Err = TcError;
 
     /// 3 kind of watermark timestamp:
@@ -114,17 +114,17 @@ impl ::std::str::FromStr for TcTime {
     ///    "%Y%m%d %H:%M:%S"
     /// d) ""  length = 0
     /// e) "04/09/15 22:28:10" length = 17
-    fn from_str(s: &str) -> Result<TcTime> {
+    fn from_str(s: &str) -> Result<LogTime> {
         match s.len() {
             19 => {
                 strptime(s, "%Y-%m-%d %H:%M:%S")
                     .map_err(|_| TcError::InvalidTimeFormat)
-                    .map(TcTime)
+                    .map(LogTime)
             }
             28 => {
                 strptime(s, "%a %b %d %T %Z %Y")
                     .map_err(|_| TcError::InvalidTimeFormat)
-                    .map(TcTime)
+                    .map(LogTime)
             }
             17 => {
                 if s.contains("/") {
@@ -133,12 +133,12 @@ impl ::std::str::FromStr for TcTime {
                         .map(|mut t| {
                             t.tm_year += 100;           // default is 19xx, change it to 20xx
                             let d = Duration::hours(1); // 1 hour timezone difference
-                            TcTime(t - d)
+                            LogTime(t - d)
                         })
                 } else {
                     strptime(s, "%Y%m%d %H:%M:%S")
                         .map_err(|_| TcError::InvalidTimeFormat)
-                        .map(TcTime)
+                        .map(LogTime)
                 }
             }
             0 => Err(TcError::MissingWaterMark),
@@ -147,7 +147,7 @@ impl ::std::str::FromStr for TcTime {
     }
 }
 
-impl fmt::Display for TcTime {
+impl fmt::Display for LogTime {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0.strftime("%Y-%m-%d %H:%M:%S") {
             Ok(t) => write!(f, "{}", t),
@@ -156,12 +156,12 @@ impl fmt::Display for TcTime {
     }
 }
 
-/// Implemnts Sub trait for calculate TcTime subtraction
-/// TcTime - TcTime = Duration
-impl ::std::ops::Sub for TcTime {
+/// Implemnts Sub trait for calculate LogTime subtraction
+/// LogTime - LogTime = Duration
+impl ::std::ops::Sub for LogTime {
     type Output = Duration;
 
-    fn sub(self, rhs: TcTime) -> Self::Output {
+    fn sub(self, rhs: LogTime) -> Self::Output {
         self.0 - rhs.0
     }
 }
@@ -171,17 +171,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn can_parse_to_tctime() {
-        let t = "2015-09-08 23:41:28".parse::<TcTime>().unwrap();
+    fn can_parse_to_time() {
+        let t = "2015-09-08 23:41:28".parse::<LogTime>().unwrap();
         assert_eq!(t.to_string(), "2015-09-08 23:41:28");
 
-        let t = "Fri Sep 11 07:59:55 BST 2015".parse::<TcTime>().unwrap();
+        let t = "Fri Sep 11 07:59:55 BST 2015".parse::<LogTime>().unwrap();
         assert_eq!(t.to_string(), "2015-09-11 07:59:55");
 
-        let t = "20150918 02:55:33".parse::<TcTime>().unwrap();
+        let t = "20150918 02:55:33".parse::<LogTime>().unwrap();
         assert_eq!(t.to_string(), "2015-09-18 02:55:33");
 
-        match "".parse::<TcTime>() {
+        match "".parse::<LogTime>() {
             Ok(_) => panic!("Can not be ok"),
             Err(e) => assert_eq!(e.to_string(), "Not Available"),
         }
