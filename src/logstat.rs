@@ -1,6 +1,6 @@
 use std::fmt;
 use time::{Duration, strptime, Tm};
-use tcerror::*;
+use error::*;
 
 #[derive(Debug,Clone, Default)]
 pub struct TcStat {

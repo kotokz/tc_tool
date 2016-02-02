@@ -8,21 +8,21 @@ extern crate clap;
 extern crate fnv;
 extern crate test;
 
-mod tradecache;
-mod tcresult;
-mod tclogparser;
-mod tcerror;
-mod tcstat;
+mod tc;
+mod logresult;
+mod logparser;
+mod error;
+mod logstat;
 
 use clap::{Arg, App};
 use std::thread;
-use tradecache::*;
+use tc::*;
 
 fn main() {
 
     let matches = App::new("Tc Stat tool")
                       .version("1.0")
-                      .author("Tony Zhou")
+                      .author("tz")
                       .about("Collect hour/batch statitic base on TC log files")
                       .arg(Arg::with_name("CONFIG")
                                .short("t")

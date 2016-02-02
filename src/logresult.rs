@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 use std::collections::BTreeMap;
 use fnv::FnvHasher;
-use tcstat::TcStat;
+use logstat::TcStat;
 
 pub fn trim_index(index: &str) -> usize {
     String::from_utf8(index.bytes().filter(|c| *c >= b'0' && *c <= b'9').collect::<Vec<_>>())

@@ -4,7 +4,7 @@ use std::io::{BufReader, BufRead};
 use std::path::PathBuf;
 use std::fs::File;
 
-use tclogparser::*;
+use logparser::*;
 
 pub struct TcTool<'a> {
     name: &'a str,
@@ -176,11 +176,11 @@ impl<'a> TcTool<'a> {
 
     /// sort the path base on extension. if no extension then assume it as 0
     /// for example, make sure the file follow below order
-    /// tradecache.log
-    /// tradecache.log.1
-    /// tradecache.log.2
+    /// tc.log
+    /// tc.log.1
+    /// tc.log.2
     /// ...
-    /// tradecache.log.10
+    /// tc.log.10
     fn sorted_path(paths: &[PathBuf]) -> Vec<PathBuf> {
         let mut paths_new: Vec<_> = paths.iter()
                                          .map(|name| {
@@ -246,17 +246,7 @@ mod tests {
     fn bench_process_line_v1_publisher(b: &mut Bencher) {
         let mut tc = TcTool::new_v1_publisher(6, false);
 
-        let line = "2015-11-08 09:07:54,679 JMS publish : \
-                    70330098:400884:10003236:10001030/288641449 msg_len=40208 meta: \
-                    {OutOfSequencePublish=false, LastMovementStatus=VerifiedBO, \
-                    EventId=288641449, LinkedPositionId=, InstrumentType=D, \
-                    AuditDateTime=20151028 06:46:06, SophisSystemId=PARIS_SOPHIS, \
-                    LastAmendedMovement=422345385, tradeEvent=Update, Allotment=Conv. Bond, \
-                    MovementCount=20, FeedName=sophis, LegalEntity=10001030, FolioId=400884, \
-                    DocWriteTime=20151028 07:17:17, PositionId=70330098:400884:10003236:10001030, \
-                    SummitId=6996768, Counterparty=10003236, MovementStatus=VerifiedBO}, \
-                    Destination name: \
-                    queue://PGBLHDEIS1/GB_DEIS.GB_TRDC.GB_TRDC.TRD_SOPHML?persistence=-1";
+        let line = "2015-11-08 09:07:54,679 JMS DocWriteTime=20151028 07:17:17,";
 
         b.iter(|| {
             let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
@@ -271,12 +261,8 @@ mod tests {
     fn bench_process_line_ng_consumer(b: &mut Bencher) {
         let mut tc = TcTool::new_ng_consumer(6, false);
 
-        let line = "2015-09-11 09:28:49,842 INFO \
-                    [org.springframework.jms.listener.DefaultMessageListenerContainer#0-1] \
-                    com.hsbc.cibm.tradecache.sophisconsumer.CachedObjectUpdater - Updating \
-                    InstrumentGenericUpdateEvent \
-                    {id=I|77787473;type=InstrumentGenericUpdate;version=45139252;timestamp=Fri \
-                    Sep 11 09:28:49 BST 2015eventId=45139252}";
+        let line = "2015-09-11 09:28:49,842 INFO timestamp=Fri Sep 11 09:28:49 BST \
+                    2015eventId=45139252}";
         b.iter(|| {
             let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
             assert_eq!(pub_time, Some("2015-09-11 09:28:49"));
@@ -290,18 +276,7 @@ mod tests {
     fn bench_process_line_ng_publisher(b: &mut Bencher) {
         let mut tc = TcTool::new_ng_publisher(6, false);
 
-        let line = "2015-09-09 02:35:01,024 JMS publish : I|75442050/45035056 msg_len=197258 \
-                    meta: {tradeType=PositionEvent, OutOfSequencePublish=false, packageModel=CCF \
-                    Package, legalEntity=, tradeId=I|75442050, feedName=SophisFeed, transition=, \
-                    eventType=, allotmentName=, cptyTreatsId=, \
-                    tradeEvent=InstrumentVersionUpdate, positionStatus=, auditDateTime=2015-09-09 \
-                    00:13:46, movementCount=0.0, bsmTrade=, sourceSystemTradeId=75442050, \
-                    eventId=45035056, movementStatus=, tradeVersion=45035056, folioPath=, \
-                    systemId=PARIS_SOPHIS, instrumentType=, docWriteTime=2015-09-09 01:35:03}, \
-                    Destination name: \
-                    topic://PRV_TCACHE/SED/SOPHISML/PS_FOLIO/EVENT?brokerDurSubQueue=SYSTEM.JMS.D.\
-                    GB_TRDC&persistence=-1&brokerVersion=1&XMSC_WMQ_BROKER_PUBQ_QMGR=PGBLHDEIS1&br\
-                    okerCCDurSubQueue=SYSTEM.JMS.D.CC.GB_TRDC";
+        let line = "2015-09-09 02:35:01,024 =, docWriteTime=2015-09-09 01:35:03}, ";
         b.iter(|| {
             let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
             assert_eq!(pub_time, Some("2015-09-09 02:35:01"));
@@ -315,9 +290,7 @@ mod tests {
     fn bench_process_line_ng_trimmer(b: &mut Bencher) {
         let mut tc = TcTool::new_ng_trimmer(6, false);
 
-        let line = "2015-09-10 21:06:34,594 INFO  [schedulerFactoryBean_Worker-4] \
-                    cachemaint.CacheMaintainerImpl (CacheMaintainerImpl.java:146)     - committed \
-                    deletes to disk cache";
+        let line = "2015-09-10 21:06:34,594 INFO    - committed deletes to disk cache";
         b.iter(|| {
             let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
             assert_eq!(pub_time, Some("2015-09-10 21:06:34"));

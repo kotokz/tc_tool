@@ -1,6 +1,6 @@
 use regex::Regex;
-use tcresult::*;
-use tcerror::TcError;
+use logresult::*;
+use error::TcError;
 
 
 pub struct TcParser<'tc> {
