@@ -22,7 +22,7 @@ impl<'a> TcTool<'a> {
             } else {
                 "xxxx/hour.log*"
             },
-            pattern: LogParser::new(Regex::new(r"docWriteTime=([^}]+?)}").unwrap()),
+            pattern: LogParser::new(Regex::new(r"docWriteTime=([^}]+)}").unwrap()),
 
             count: count,
         }

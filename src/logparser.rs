@@ -17,7 +17,7 @@ impl<'tc> LogParser<'tc> {
             matcher: pattern.to_matcher(),
             result: Box::new(HourResult::new()),
             batch_matcher: None,
-            time_regex: Regex::new(r"^([^,]+?),").unwrap(),
+            time_regex: Regex::new(r"^([^,]+),").unwrap(),
         }
     }
 
@@ -29,7 +29,7 @@ impl<'tc> LogParser<'tc> {
                 Some(_) => Box::new(BatchResult::new()),
             },
             batch_matcher: batch.map(|t| t.to_matcher()),
-            time_regex: Regex::new(r"^([^,]+?),").unwrap(),
+            time_regex: Regex::new(r"^([^,]+),").unwrap(),
         }
     }
 
