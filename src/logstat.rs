@@ -98,7 +98,7 @@ impl Stat {
     }
 }
 
-/// LogTime is for date time format conversion and help to calculates delta, for example to calculate
+/// `LogTime` is for date time format conversion and help to calculates delta, for example to calculate
 /// delay value.
 pub struct LogTime(Tm);
 
@@ -127,7 +127,7 @@ impl ::std::str::FromStr for LogTime {
                     .map(LogTime)
             }
             17 => {
-                if s.contains("/") {
+                if s.contains('/') {
                     strptime(s, "%d/%m/%y %H:%M:%S")
                         .map_err(|_| LogError::InvalidTimeFormat)
                         .map(|mut t| {
@@ -156,8 +156,8 @@ impl fmt::Display for LogTime {
     }
 }
 
-/// Implemnts Sub trait for calculate LogTime subtraction
-/// LogTime - LogTime = Duration
+/// Implemnts Sub trait for calculate `LogTime` subtraction
+/// `LogTime` - `LogTime` = `Duration`
 impl ::std::ops::Sub for LogTime {
     type Output = Duration;
 

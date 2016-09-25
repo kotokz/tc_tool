@@ -17,7 +17,7 @@ pub trait ResultTrait {
     fn print_result(&self, name: &str);
 }
 
-/// HourResult is simply just a HashMap, using the log hour (usize, for example "2015 09") as 
+/// `HourResult` is simply just a `HashMap`, using the log hour (usize, for example "2015 09") as 
 /// index and Stat as content.
 #[derive(Default)]
 pub struct HourResult(pub HashMap<usize, Stat, BuildHasherDefault<FnvHasher>>);
@@ -47,10 +47,9 @@ impl ResultTrait for HourResult {
     /// Returns the current count of TcResult, for early exit purpose
     fn increase_count(&mut self, time: &str, watermark: &str, _: usize) -> Option<usize> {
         let split: Vec<_> = time.split(':').collect();
-        let (hour, min): (usize, u32) = match &split[..] {
+        let (hour, min): (usize, u32) = match split[..] {
             // [TODO]: Better error handling required - 2015-12-07 10:07P
-            [ref hour, ref min, _] => (trim_index(hour), min.parse().unwrap()),
-            [ref hour, ref min] => (trim_index(hour), min.parse().unwrap()),
+            [hour, min, _] | [hour, min] => (trim_index(hour), min.parse().unwrap()),
             _ => return None,
         };
         {
@@ -82,7 +81,7 @@ impl ResultTrait for HourResult {
     fn print_result(&self, name: &str) {
         // skip the first value, normally the record too old so likely to be incomplete.
         for (count, key) in self.get_result().iter().rev().enumerate() {
-            match self.0.get(&key) {
+            match self.0.get(key) {
                 Some(val) if count == 0 => {
                     println!("{}-{},{}", name, count, val.to_str(true));
                 }
@@ -189,7 +188,7 @@ impl ResultTrait for BatchResult {
     fn print_result(&self, name: &str) {
         // skip the first value, normally the record too old so likely to be incomplete.
         for (count, key) in self.get_result().iter().rev().enumerate() {
-            match self.map.get(&key) {
+            match self.map.get(key) {
                 Some(val) => {
                     println!("{}-{},{}", name, count, val.batch_to_str());
                 }

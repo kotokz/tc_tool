@@ -18,7 +18,7 @@ impl<'a> TcTool<'a> {
         TcTool {
             name: "Hour",
             path: if prod {
-                "xxxx/hour.log*"
+                "xxxx/hour_prod.log*"
             } else {
                 "xxxx/hour.log*"
             },
@@ -35,7 +35,7 @@ impl<'a> TcTool<'a> {
             path: if prod {
                 "xxx/prod/logs/batch.log*"
             } else {
-                "xxx/prod/logs/batch.log*"
+                "xxx/test/logs/batch.log*"
             },
             pattern: LogParser::new_batch("committed", Regex::new(r"Context contains (\d+)").ok()),
             count: count,
@@ -68,7 +68,7 @@ impl<'a> TcTool<'a> {
     }
     /// Process files which matched the path pattern. for example: directory/file*
     pub fn process_directory(&mut self) {
-        let files: Vec<_> = glob(&self.path).unwrap().filter_map(|r| r.ok()).collect();
+        let files: Vec<_> = glob(self.path).unwrap().filter_map(|r| r.ok()).collect();
         let files = Self::sorted_path(&files);
 
         for name in files {
@@ -84,7 +84,7 @@ impl<'a> TcTool<'a> {
     }
 
     pub fn print_result(&self) {
-        self.pattern.print_result(&self.name);
+        self.pattern.print_result(self.name);
     }
 }
 

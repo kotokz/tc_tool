@@ -9,7 +9,6 @@ glob = "*"
 lazy_static = "*"
 regex = "*"
 time = "*"
-clippy = "*"
 fnv = "*"
 
 [profile.release]

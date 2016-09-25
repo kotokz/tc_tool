@@ -1,5 +1,4 @@
-#![feature(slice_patterns, test, plugin)]
-#![plugin(clippy)]
+#![feature(slice_patterns, test)]
 
 extern crate regex;
 extern crate glob;

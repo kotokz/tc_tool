@@ -52,7 +52,7 @@ impl<'tc> LogParser<'tc> {
     /// it will extract the information from input and save into result.
     /// it will return None if the line doesn't match any pattern.
     pub fn process_line(&mut self, line: &str) -> Option<usize> {
-        match self.extract_info(&line) {
+        match self.extract_info(line) {
             (Some(time), Some(count), Some(spent)) => {
                 self.result.increase_count(time, spent, count.parse::<usize>().unwrap_or(1))
             }
