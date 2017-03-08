@@ -1,4 +1,4 @@
-use regex::Regex;
+use regex::{Regex, Match};
 use logresult::*;
 use error::LogError;
 
@@ -9,7 +9,6 @@ pub struct LogParser<'tc> {
     batch_matcher: Option<MatcherEnum>,
     time_regex: Regex,
 }
-
 
 impl<'tc> LogParser<'tc> {
     pub fn new<T: ToMatcher>(pattern: T) -> LogParser<'tc> {
@@ -38,11 +37,11 @@ impl<'tc> LogParser<'tc> {
     /// time stamp.We need both timestamp and watermark to update the result set.
     pub fn extract_info<'a>(&mut self,
                             line: &'a str)
-                            -> (Option<&'a str>, Option<&'a str>, Option<&'a str>) {
+                            -> (Option<&'a str>, Option<Match<'a>>, Option<Match<'a>>) {
         match self.matcher.match_line(line) {
             Ok((r, c)) => {
                 let t = self.get_timestamp(line);
-                (t, r, c)
+                (Some(t), r, c)
             }
             _ => (None, None, None),
         }
@@ -54,9 +53,9 @@ impl<'tc> LogParser<'tc> {
     pub fn process_line(&mut self, line: &str) -> Option<usize> {
         match self.extract_info(line) {
             (Some(time), Some(count), Some(spent)) => {
-                self.result.increase_count(time, spent, count.parse::<usize>().unwrap_or(1))
+                self.result.increase_count(time, spent.as_str(), count.as_str().parse::<usize>().unwrap_or(1))
             }
-            (Some(time), Some(watermark), None) => self.result.increase_count(time, watermark, 1),
+            (Some(time), Some(watermark), None) => self.result.increase_count(time, watermark.as_str(), 1),
             (Some(time), None, None) => self.result.increase_count(time, "", 1),
             _ => {
                 self.check_batch(line);
@@ -70,12 +69,12 @@ impl<'tc> LogParser<'tc> {
 
             match p.match_batch(line) {
                 Ok((Some(r), Some(c))) => {
-                    let t = self.get_timestamp(line).unwrap_or("");
-                    self.result.process_batch(t, r, c)
+                    let t = self.get_timestamp(line);
+                    self.result.process_batch(t, r.as_str(), c.as_str())
                 }
-                Ok((Some(c), None)) if c.parse::<usize>().unwrap_or(0) > 0 => {
-                    let t = self.get_timestamp(line).unwrap();
-                    self.result.process_batch(t, "", c)
+                Ok((Some(c), None)) if c.as_str().parse::<usize>().unwrap_or(0) > 0 => {
+                    let t = self.get_timestamp(line);
+                    self.result.process_batch(t, "", c.as_str())
                 }
                 _ => return,
             }
@@ -85,10 +84,10 @@ impl<'tc> LogParser<'tc> {
     /// get_timestamp extract the time stamp from the beigining of the matched line.
     /// The time format is known in this content so hardcoded in the function as default
     /// implementation.
-    fn get_timestamp<'a>(&self, line: &'a str) -> Option<&'a str> {
+    fn get_timestamp<'a>(&self, line: &'a str) -> &'a str {
         match self.time_regex.captures(line) {
-            Some(t) => t.at(1),
-            None => None,
+            Some(t) => t.get(1).map_or("", |m| m.as_str()),
+            None => "",
         }
     }
 
@@ -131,11 +130,11 @@ impl<'a> ToMatcher for &'a str {
 impl MatcherEnum {
     pub fn match_line<'a>(&self,
                           line: &'a str)
-                          -> Result<(Option<&'a str>, Option<&'a str>), LogError> {
+                          -> Result<(Option<Match<'a>>, Option<Match<'a>>), LogError> {
         match *self {
             MatcherEnum::Regex(ref r) => {
                 match r.captures(line) {
-                    Some(c) => Ok((c.at(1), c.at(2))),
+                    Some(c) => Ok((c.get(1), c.get(2))),
                     None => Err(LogError::MisMatch),
                 }
             }
@@ -151,11 +150,11 @@ impl MatcherEnum {
 
     pub fn match_batch<'a>(&self,
                            line: &'a str)
-                           -> Result<(Option<&'a str>, Option<&'a str>), LogError> {
+                           -> Result<(Option<Match<'a>>, Option<Match<'a>>), LogError> {
         match *self {
             MatcherEnum::Regex(ref r) => {
                 match r.captures(line) {
-                    Some(c) => Ok((c.at(1), c.at(2))),
+                    Some(c) => Ok((c.get(1), c.get(2))),
                     None => Err(LogError::MisMatch),
                 }
             }

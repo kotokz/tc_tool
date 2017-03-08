@@ -198,7 +198,6 @@ impl ResultTrait for BatchResult {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

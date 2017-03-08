@@ -88,158 +88,158 @@ impl<'a> TcTool<'a> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use test::Bencher;
-    use std::thread;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use test::Bencher;
+//     use std::thread;
 
-    fn process_line_incorrect_tester(tc: &mut TcTool) {
-        let lines: Vec<_> = vec![
-                "incorrect line",
-                "",
-                "2015-09-11 09:28:49,842 aaaaaaaaaaaaaaaaaa timestamp=aaaa",
-                "2015-09-11 09:28:49,842 aaaaaaaaaaaaaaaaaa docWriteTime=aaaa",
-                "2015-09-11 09:28:49,842 aaaaaaaaaaaaaaaaaa DocWriteTime=aaaa",
-            ];
+//     fn process_line_incorrect_tester(tc: &mut TcTool) {
+//         let lines: Vec<_> = vec![
+//                 "incorrect line",
+//                 "",
+//                 "2015-09-11 09:28:49,842 aaaaaaaaaaaaaaaaaa timestamp=aaaa",
+//                 "2015-09-11 09:28:49,842 aaaaaaaaaaaaaaaaaa docWriteTime=aaaa",
+//                 "2015-09-11 09:28:49,842 aaaaaaaaaaaaaaaaaa DocWriteTime=aaaa",
+//             ];
 
-        for line in lines {
-            let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
-            assert_eq!(pub_time, None);
-            assert_eq!(watermark, None);
-        }
-    }
+//         for line in lines {
+//             let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
+//             assert_eq!(pub_time, None);
+//             assert_eq!(watermark, None);
+//         }
+//     }
 
-    #[bench]
-    fn bench_process_line_v1_publisher(b: &mut Bencher) {
-        let mut tc = TcTool::new_v1_publisher(6, false);
+//     #[bench]
+//     fn bench_process_line_v1_publisher(b: &mut Bencher) {
+//         let mut tc = TcTool::new_v1_publisher(6, false);
 
-        let line = "2015-11-08 09:07:54,679 JMS DocWriteTime=20151028 07:17:17,";
+//         let line = "2015-11-08 09:07:54,679 JMS DocWriteTime=20151028 07:17:17,";
 
-        b.iter(|| {
-            let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
-            assert_eq!(pub_time, Some("2015-11-08 09:07:54"));
-            assert_eq!(watermark, Some("20151028 07:17:17"));
+//         b.iter(|| {
+//             let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
+//             assert_eq!(pub_time, Some("2015-11-08 09:07:54"));
+//             assert_eq!(watermark, Some("20151028 07:17:17"));
 
-            process_line_incorrect_tester(&mut tc);
-        });
-    }
+//             process_line_incorrect_tester(&mut tc);
+//         });
+//     }
 
-    #[bench]
-    fn bench_process_line_ng_consumer(b: &mut Bencher) {
-        let mut tc = TcTool::new_ng_consumer(6, false);
+//     #[bench]
+//     fn bench_process_line_ng_consumer(b: &mut Bencher) {
+//         let mut tc = TcTool::new_ng_consumer(6, false);
 
-        let line = "2015-09-11 09:28:49,842 INFO timestamp=Fri Sep 11 09:28:49 BST \
-                    2015eventId=45139252}";
-        b.iter(|| {
-            let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
-            assert_eq!(pub_time, Some("2015-09-11 09:28:49"));
-            assert_eq!(watermark, Some("Fri Sep 11 09:28:49 BST 2015"));
+//         let line = "2015-09-11 09:28:49,842 INFO timestamp=Fri Sep 11 09:28:49 BST \
+//                     2015eventId=45139252}";
+//         b.iter(|| {
+//             let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
+//             assert_eq!(pub_time, Some("2015-09-11 09:28:49"));
+//             assert_eq!(watermark, Some("Fri Sep 11 09:28:49 BST 2015"));
 
-            process_line_incorrect_tester(&mut tc);
-        });
-    }
+//             process_line_incorrect_tester(&mut tc);
+//         });
+//     }
 
-    #[bench]
-    fn bench_process_line_ng_publisher(b: &mut Bencher) {
-        let mut tc = TcTool::new_ng_publisher(6, false);
+//     #[bench]
+//     fn bench_process_line_ng_publisher(b: &mut Bencher) {
+//         let mut tc = TcTool::new_ng_publisher(6, false);
 
-        let line = "2015-09-09 02:35:01,024 =, docWriteTime=2015-09-09 01:35:03}, ";
-        b.iter(|| {
-            let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
-            assert_eq!(pub_time, Some("2015-09-09 02:35:01"));
-            assert_eq!(watermark, Some("2015-09-09 01:35:03"));
+//         let line = "2015-09-09 02:35:01,024 =, docWriteTime=2015-09-09 01:35:03}, ";
+//         b.iter(|| {
+//             let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
+//             assert_eq!(pub_time, Some("2015-09-09 02:35:01"));
+//             assert_eq!(watermark, Some("2015-09-09 01:35:03"));
 
-            process_line_incorrect_tester(&mut tc);
-        });
-    }
+//             process_line_incorrect_tester(&mut tc);
+//         });
+//     }
 
-    #[bench]
-    fn bench_process_line_ng_trimmer(b: &mut Bencher) {
-        let mut tc = TcTool::new_ng_trimmer(6, false);
+//     #[bench]
+//     fn bench_process_line_ng_trimmer(b: &mut Bencher) {
+//         let mut tc = TcTool::new_ng_trimmer(6, false);
 
-        let line = "2015-09-10 21:06:34,594 INFO    - committed deletes to disk cache";
-        b.iter(|| {
-            let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
-            assert_eq!(pub_time, Some("2015-09-10 21:06:34"));
-            assert_eq!(watermark, None);
+//         let line = "2015-09-10 21:06:34,594 INFO    - committed deletes to disk cache";
+//         b.iter(|| {
+//             let (pub_time, watermark, _) = tc.pattern.extract_info(&line);
+//             assert_eq!(pub_time, Some("2015-09-10 21:06:34"));
+//             assert_eq!(watermark, None);
 
-            process_line_incorrect_tester(&mut tc);
-        });
-    }
-
-
-    #[bench]
-    #[ignore]
-    fn bench_tc_v1_process(b: &mut Bencher) {
-        b.iter(|| {
-            let mut publisher = TcTool::new_v1_publisher(6, false);
-            publisher.process_directory();
-        });
-    }
-
-    #[bench]
-    #[ignore]
-    fn bench_tc_ng_process(b: &mut Bencher) {
-        b.iter(|| {
-            let mut consumer = TcTool::new_ng_consumer(6, false);
-            consumer.process_directory();
-        });
-    }
-
-    #[bench]
-    #[ignore]
-    fn bench_tc_ng_trimmer(b: &mut Bencher) {
-        b.iter(|| {
-            let mut trimmer = TcTool::new_ng_trimmer(6, false);
-            trimmer.process_directory();
-        });
-    }
+//             process_line_incorrect_tester(&mut tc);
+//         });
+//     }
 
 
-    #[bench]
-    #[ignore]
-    fn bench_process_two(b: &mut Bencher) {
-        b.iter(|| {
-            let mut publisher = TcTool::new_v1_publisher(6, false);
-            let mut ng_consumer = TcTool::new_ng_consumer(6, false);
+//     #[bench]
+//     #[ignore]
+//     fn bench_tc_v1_process(b: &mut Bencher) {
+//         b.iter(|| {
+//             let mut publisher = TcTool::new_v1_publisher(6, false);
+//             publisher.process_directory();
+//         });
+//     }
 
-            let handle_pub = thread::spawn(move || {
-                publisher.process_directory();
-            });
+//     #[bench]
+//     #[ignore]
+//     fn bench_tc_ng_process(b: &mut Bencher) {
+//         b.iter(|| {
+//             let mut consumer = TcTool::new_ng_consumer(6, false);
+//             consumer.process_directory();
+//         });
+//     }
 
-            let handle_consumer = thread::spawn(move || {
-                ng_consumer.process_directory();
-            });
+//     #[bench]
+//     #[ignore]
+//     fn bench_tc_ng_trimmer(b: &mut Bencher) {
+//         b.iter(|| {
+//             let mut trimmer = TcTool::new_ng_trimmer(6, false);
+//             trimmer.process_directory();
+//         });
+//     }
 
-            handle_pub.join().unwrap();
-            handle_consumer.join().unwrap();
-        });
-    }
 
-    #[bench]
-    #[ignore]
-    fn bench_process_three(b: &mut Bencher) {
-        b.iter(|| {
-            let mut ng_pub = TcTool::new_ng_publisher(6, false);
-            let mut ng_con = TcTool::new_ng_consumer(6, false);
-            let mut v1_pub = TcTool::new_v1_publisher(6, false);
+//     #[bench]
+//     #[ignore]
+//     fn bench_process_two(b: &mut Bencher) {
+//         b.iter(|| {
+//             let mut publisher = TcTool::new_v1_publisher(6, false);
+//             let mut ng_consumer = TcTool::new_ng_consumer(6, false);
 
-            let h_pub = thread::spawn(move || {
-                ng_pub.process_directory();
-            });
+//             let handle_pub = thread::spawn(move || {
+//                 publisher.process_directory();
+//             });
 
-            let h_con = thread::spawn(move || {
-                ng_con.process_directory();
-            });
+//             let handle_consumer = thread::spawn(move || {
+//                 ng_consumer.process_directory();
+//             });
 
-            let h_v1_pub = thread::spawn(move || {
-                v1_pub.process_directory();
-            });
+//             handle_pub.join().unwrap();
+//             handle_consumer.join().unwrap();
+//         });
+//     }
 
-            h_pub.join().unwrap();
-            h_con.join().unwrap();
-            h_v1_pub.join().unwrap();
-        });
-    }
-}
+//     #[bench]
+//     #[ignore]
+//     fn bench_process_three(b: &mut Bencher) {
+//         b.iter(|| {
+//             let mut ng_pub = TcTool::new_ng_publisher(6, false);
+//             let mut ng_con = TcTool::new_ng_consumer(6, false);
+//             let mut v1_pub = TcTool::new_v1_publisher(6, false);
+
+//             let h_pub = thread::spawn(move || {
+//                 ng_pub.process_directory();
+//             });
+
+//             let h_con = thread::spawn(move || {
+//                 ng_con.process_directory();
+//             });
+
+//             let h_v1_pub = thread::spawn(move || {
+//                 v1_pub.process_directory();
+//             });
+
+//             h_pub.join().unwrap();
+//             h_con.join().unwrap();
+//             h_v1_pub.join().unwrap();
+//         });
+//     }
+// }
